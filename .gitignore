@@ -30,8 +30,10 @@ yarn-error.*
 .DS_Store
 *.pem
 
-# local env files
-.env*.local
+# Environment files (the app only reads non-sensitive EXPO_PUBLIC_ values).
+.env
+.env.*
+!.env.example
 
 # typescript
 *.tsbuildinfo
