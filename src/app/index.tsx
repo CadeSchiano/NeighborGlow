@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { type Region } from 'react-native-maps';
@@ -85,10 +85,11 @@ export default function MapScreen() {
       <MapView
         accessibilityLabel="NeighborGlow map. Pan or zoom to explore the area."
         initialRegion={INITIAL_REGION}
-        mapType="standard"
+        mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
         ref={mapRef}
         showsUserLocation={hasLocationPermission}
         style={styles.map}
+        userInterfaceStyle="dark"
       />
 
       <SafeAreaView pointerEvents="box-none" style={styles.overlay}>
@@ -140,11 +141,18 @@ const styles = StyleSheet.create({
   },
   wordmark: {
     alignSelf: 'flex-start',
-    backgroundColor: 'rgba(21, 16, 31, 0.92)',
-    borderRadius: 12,
+    backgroundColor: 'rgba(24, 15, 36, 0.96)',
+    borderColor: 'rgba(155, 97, 201, 0.58)',
+    borderRadius: 16,
+    borderWidth: 1,
+    elevation: 5,
     marginTop: 8,
     paddingHorizontal: 14,
     paddingVertical: 10,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.24,
+    shadowRadius: 10,
   },
   locationControl: {
     alignSelf: 'stretch',
@@ -153,8 +161,10 @@ const styles = StyleSheet.create({
   },
   locationMessage: {
     alignSelf: 'center',
-    backgroundColor: 'rgba(21, 16, 31, 0.92)',
-    borderRadius: 10,
+    backgroundColor: 'rgba(24, 15, 36, 0.96)',
+    borderColor: 'rgba(155, 97, 201, 0.42)',
+    borderRadius: 12,
+    borderWidth: 1,
     color: '#F2EDF8',
     fontSize: 14,
     marginBottom: 8,
@@ -164,15 +174,15 @@ const styles = StyleSheet.create({
   },
   locationButton: {
     alignItems: 'center',
-    backgroundColor: '#F7A84A',
-    borderRadius: 14,
+    backgroundColor: '#FF9E3D',
+    borderRadius: 16,
     flexDirection: 'row',
     justifyContent: 'center',
     minHeight: 52,
     paddingHorizontal: 18,
   },
   locationButtonPressed: {
-    backgroundColor: '#E8983C',
+    backgroundColor: '#E78328',
   },
   locationButtonDisabled: {
     opacity: 0.8,
@@ -186,12 +196,12 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   title: {
-    color: '#F7A84A',
+    color: '#FFAA4D',
     fontSize: 20,
     fontWeight: '700',
   },
   subtitle: {
-    color: '#F2EDF8',
+    color: '#E9DDF5',
     fontSize: 12,
     fontWeight: '600',
     marginTop: 2,
