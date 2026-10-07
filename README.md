@@ -21,3 +21,11 @@ The Glow must only consume and display aggregated, coarsened activity. Never add
 ## Google Maps release configuration
 
 The initial map screen runs in Expo Go without a project API key. Before creating a native development or production build that uses Google Maps, configure platform-restricted Google Maps SDK keys through the `react-native-maps` Expo config plugin. Keep those values in local or EAS environment configuration, never in Git.
+
+## Supabase setup
+
+1. Create the NeighborGlow project in Supabase.
+2. Copy the Project URL and publishable key from its Connect dialog into a local `.env` file using `.env.example` as the template.
+3. Never add a service-role key, database password, or other privileged credential to an Expo environment variable or mobile app.
+
+The app currently creates anonymous Supabase clients only. Authentication and session persistence will be configured with the contributor account flow. Database schema, PostGIS, migrations, and Row Level Security belong to the next backend phase.
