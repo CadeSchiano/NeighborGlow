@@ -27,7 +27,13 @@
     },
     "plugins": [
       "expo-router",
-      "expo-status-bar"
+      "expo-status-bar",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "NeighborGlow uses your location only to center the map around you. Your location is not shared or stored."
+        }
+      ]
     ]
   }
 }
