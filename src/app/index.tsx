@@ -1,8 +1,13 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { type Region } from 'react-native-maps';
+import MapView, { Marker, type Region } from 'react-native-maps';
+
+import {
+  getHousesInBounds,
+  type VisibleHouse,
+} from '@/features/houses/services/get-houses-in-bounds';
 
 const INITIAL_REGION: Region = {
   latitude: 39.8283,
@@ -13,8 +18,12 @@ const INITIAL_REGION: Region = {
 
 export default function MapScreen() {
   const mapRef = useRef<MapView>(null);
+  const houseRequestIdRef = useRef(0);
+  const houseRequestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [hasLocationPermission, setHasLocationPermission] = useState(false);
+  const [houses, setHouses] = useState<VisibleHouse[]>([]);
   const [isLocating, setIsLocating] = useState(false);
+  const [isLoadingHouses, setIsLoadingHouses] = useState(false);
   const [locationMessage, setLocationMessage] = useState<string | null>(
     'Use your location to center the map around you.'
   );
@@ -36,6 +45,45 @@ export default function MapScreen() {
     return () => {
       isMounted = false;
     };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (houseRequestTimerRef.current) {
+        clearTimeout(houseRequestTimerRef.current);
+      }
+    };
+  }, []);
+
+  const loadHousesForRegion = useCallback((region: Region) => {
+    houseRequestIdRef.current += 1;
+    const requestId = houseRequestIdRef.current;
+
+    if (houseRequestTimerRef.current) {
+      clearTimeout(houseRequestTimerRef.current);
+    }
+
+    houseRequestTimerRef.current = setTimeout(() => {
+      void (async () => {
+        setIsLoadingHouses(true);
+
+        try {
+          const visibleHouses = await getHousesInBounds(region);
+
+          if (houseRequestIdRef.current === requestId) {
+            setHouses(visibleHouses);
+          }
+        } catch {
+          if (houseRequestIdRef.current === requestId) {
+            setHouses([]);
+          }
+        } finally {
+          if (houseRequestIdRef.current === requestId) {
+            setIsLoadingHouses(false);
+          }
+        }
+      })();
+    }, 250);
   }, []);
 
   const centerOnCurrentLocation = async () => {
@@ -86,11 +134,22 @@ export default function MapScreen() {
         accessibilityLabel="NeighborGlow map. Pan or zoom to explore the area."
         initialRegion={INITIAL_REGION}
         mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
+        onRegionChangeComplete={loadHousesForRegion}
         ref={mapRef}
         showsUserLocation={hasLocationPermission}
         style={styles.map}
         userInterfaceStyle="dark"
-      />
+      >
+        {houses.map((house) => (
+          <Marker
+            coordinate={{ latitude: house.latitude, longitude: house.longitude }}
+            description={house.status === 'running_low' ? 'Candy running low' : 'Candy available'}
+            key={house.id}
+            pinColor={house.status === 'running_low' ? '#FF9E3D' : '#B978FF'}
+            title="Trick-or-treating"
+          />
+        ))}
+      </MapView>
 
       <SafeAreaView pointerEvents="box-none" style={styles.overlay}>
         <View accessible accessibilityRole="header" style={styles.wordmark}>
@@ -99,6 +158,7 @@ export default function MapScreen() {
         </View>
 
         <View style={styles.locationControl}>
+          {isLoadingHouses ? <ActivityIndicator color="#FFAA4D" style={styles.houseLoading} /> : null}
           {locationMessage ? <Text style={styles.locationMessage}>{locationMessage}</Text> : null}
           <Pressable
             accessibilityHint="Requests permission, then centers the map on your current location."
@@ -158,6 +218,10 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     marginBottom: 16,
     marginTop: 'auto',
+  },
+  houseLoading: {
+    alignSelf: 'center',
+    marginBottom: 8,
   },
   locationMessage: {
     alignSelf: 'center',
