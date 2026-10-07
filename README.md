@@ -17,3 +17,7 @@ npm run typecheck
 ## Privacy baseline
 
 The Glow must only consume and display aggregated, coarsened activity. Never add another user's live location or location history to a client-visible API or map layer.
+
+## Google Maps release configuration
+
+The initial map screen runs in Expo Go without a project API key. Before creating a native development or production build that uses Google Maps, configure platform-restricted Google Maps SDK keys through the `react-native-maps` Expo config plugin. Keep those values in local or EAS environment configuration, never in Git.
