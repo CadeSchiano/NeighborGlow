@@ -3,7 +3,9 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from '
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, type Region } from 'react-native-maps';
+import { Link } from 'expo-router';
 
+import { useAuth } from '@/features/auth/providers/auth-provider';
 import {
   getHousesInBounds,
   type VisibleHouse,
@@ -27,6 +29,7 @@ export default function MapScreen() {
   const [locationMessage, setLocationMessage] = useState<string | null>(
     'Use your location to center the map around you.'
   );
+  const { isLoading: isLoadingAuth, session } = useAuth();
 
   useEffect(() => {
     let isMounted = true;
@@ -157,6 +160,12 @@ export default function MapScreen() {
           <Text style={styles.subtitle}>Halloween 2026</Text>
         </View>
 
+        {!isLoadingAuth ? (
+          <Link href="./sign-in" style={styles.accountLink}>
+            {session ? 'Account' : 'Homeowner access'}
+          </Link>
+        ) : null}
+
         <View style={styles.locationControl}>
           {isLoadingHouses ? <ActivityIndicator color="#FFAA4D" style={styles.houseLoading} /> : null}
           {locationMessage ? <Text style={styles.locationMessage}>{locationMessage}</Text> : null}
@@ -213,6 +222,19 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.24,
     shadowRadius: 10,
+  },
+  accountLink: {
+    alignSelf: 'flex-end',
+    backgroundColor: 'rgba(24, 15, 36, 0.96)',
+    borderColor: 'rgba(155, 97, 201, 0.58)',
+    borderRadius: 16,
+    borderWidth: 1,
+    color: '#F8F4FC',
+    fontSize: 15,
+    fontWeight: '700',
+    marginTop: -52,
+    paddingHorizontal: 14,
+    paddingVertical: 11,
   },
   locationControl: {
     alignSelf: 'stretch',
