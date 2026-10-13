@@ -31,9 +31,10 @@
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "NeighborGlow uses your location only to center the map around you. Your location is not shared or stored."
+          "locationWhenInUsePermission": "NeighborGlow uses your location only to center maps or prefill a house listing you choose to publish. It is not shared or stored unless you save your own listing."
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ]
   }
 }

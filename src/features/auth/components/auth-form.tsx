@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { router } from 'expo-router';
+import { Link, router } from 'expo-router';
 
 import { useAuth } from '@/features/auth/providers/auth-provider';
 import { supabase } from '@/services/supabase/client';
@@ -120,6 +120,9 @@ export function AuthForm() {
           {message && message !== INITIAL_MESSAGE ? (
             <Text style={styles.errorMessage}>{message}</Text>
           ) : null}
+          <Link href="../list-house" style={styles.listHouseLink}>
+            List your house
+          </Link>
           <Pressable
             accessibilityLabel="Sign out"
             accessibilityRole="button"
@@ -291,6 +294,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     minHeight: 52,
     paddingHorizontal: 18,
+  },
+  listHouseLink: {
+    backgroundColor: '#FF9E3D',
+    borderRadius: 14,
+    color: '#15101F',
+    fontSize: 16,
+    fontWeight: '700',
+    marginBottom: 12,
+    paddingHorizontal: 18,
+    paddingVertical: 16,
+    textAlign: 'center',
   },
   secondaryButtonPressed: {
     backgroundColor: 'rgba(217, 184, 255, 0.16)',
