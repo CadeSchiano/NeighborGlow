@@ -1,5 +1,7 @@
 import { supabase } from '@/services/supabase/client';
 
+export type HouseAvailabilityStatus = 'available' | 'finished' | 'not_started' | 'out' | 'running_low';
+
 export type OwnHouseListing = {
   accessible: boolean;
   allergy_friendly: boolean;
@@ -11,6 +13,7 @@ export type OwnHouseListing = {
   longitude: number;
   non_candy: boolean;
   starts_at: string | null;
+  status: HouseAvailabilityStatus;
 };
 
 export async function getOwnHouseListing(): Promise<OwnHouseListing | null> {

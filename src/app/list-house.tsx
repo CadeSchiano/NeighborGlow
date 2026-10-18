@@ -4,6 +4,7 @@ import { Link, Redirect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { HouseListingForm } from '@/features/houses/components/house-listing-form';
+import { HouseAvailabilityControl } from '@/features/houses/components/house-availability-control';
 import {
   getOwnHouseListing,
   type OwnHouseListing,
@@ -82,11 +83,20 @@ export default function ListHouseScreen() {
         <Text style={styles.title}>{existingListing ? 'Edit your house' : 'List your house'}</Text>
         {listingError ? <Text style={styles.errorMessage}>{listingError}</Text> : null}
         {!listingError ? (
-          <HouseListingForm
-            existingListing={existingListing}
-            key={existingListing?.id ?? 'new-listing'}
-            ownerId={session.user.id}
-          />
+          <>
+            {existingListing ? (
+              <HouseAvailabilityControl
+                houseId={existingListing.id}
+                initialStatus={existingListing.status}
+                ownerId={session.user.id}
+              />
+            ) : null}
+            <HouseListingForm
+              existingListing={existingListing}
+              key={existingListing?.id ?? 'new-listing'}
+              ownerId={session.user.id}
+            />
+          </>
         ) : null}
       </ScrollView>
     </SafeAreaView>
