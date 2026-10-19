@@ -5,11 +5,23 @@ import {
   getPublicHouseDetails,
   type PublicHouseDetails,
 } from '@/features/houses/services/get-public-house-details';
+import {
+  confirmHouseAvailability,
+  type ConfirmationStatus,
+} from '@/features/houses/services/confirm-house-availability';
 
 type PublicHouseDetailCardProps = {
   houseId: string;
+  onSignIn: () => void;
   onClose: () => void;
+  userId: string | null;
 };
+
+const CONFIRMATION_OPTIONS: { label: string; status: ConfirmationStatus }[] = [
+  { label: 'Available', status: 'available' },
+  { label: 'Running low', status: 'running_low' },
+  { label: 'Out', status: 'out' },
+];
 
 function formatTime(value: string | null) {
   if (!value) {
@@ -37,10 +49,16 @@ function getAttributes(house: PublicHouseDetails) {
   ].filter((attribute): attribute is string => Boolean(attribute));
 }
 
-export function PublicHouseDetailCard({ houseId, onClose }: PublicHouseDetailCardProps) {
+export function PublicHouseDetailCard({
+  houseId,
+  onClose,
+  onSignIn,
+  userId,
+}: PublicHouseDetailCardProps) {
   const [house, setHouse] = useState<PublicHouseDetails | null>(null);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isConfirming, setIsConfirming] = useState(false);
 
   useEffect(() => {
     let isCurrent = true;
@@ -74,6 +92,24 @@ export function PublicHouseDetailCard({ houseId, onClose }: PublicHouseDetailCar
   const hours = house?.starts_at && house.ends_at ? `${formatTime(house.starts_at)} – ${formatTime(house.ends_at)}` : null;
   const attributes = house ? getAttributes(house) : [];
 
+  const submitConfirmation = async (status: ConfirmationStatus) => {
+    if (!userId) {
+      onSignIn();
+      return;
+    }
+
+    setIsConfirming(true);
+
+    try {
+      await confirmHouseAvailability(houseId, userId, status);
+      setMessage('Thanks for helping neighbors keep this listing current.');
+    } catch {
+      setMessage('We could not save your confirmation. Please try again.');
+    } finally {
+      setIsConfirming(false);
+    }
+  };
+
   return (
     <View accessibilityViewIsModal style={styles.card}>
       <View style={styles.header}>
@@ -102,7 +138,36 @@ export function PublicHouseDetailCard({ houseId, onClose }: PublicHouseDetailCar
           ))}
         </View>
       ) : null}
+      {house?.last_confirmed_at ? (
+        <Text style={styles.confirmationSummary}>
+          Confirmed by {house.recent_confirmation_count} neighbor{house.recent_confirmation_count === 1 ? '' : 's'} recently
+        </Text>
+      ) : null}
       {house ? <Text style={styles.note}>Availability is homeowner-reported and may change during the night.</Text> : null}
+      {house ? (
+        <View style={styles.confirmationSection}>
+          <Text style={styles.confirmationHeading}>Is this house still giving out candy?</Text>
+          <View style={styles.confirmationOptions}>
+            {CONFIRMATION_OPTIONS.map((option) => (
+              <Pressable
+                accessibilityLabel={`Confirm ${option.label}`}
+                accessibilityRole="button"
+                disabled={isConfirming}
+                key={option.status}
+                onPress={() => void submitConfirmation(option.status)}
+                style={({ pressed }) => [
+                  styles.confirmationButton,
+                  pressed && !isConfirming ? styles.confirmationButtonPressed : null,
+                  isConfirming ? styles.confirmationButtonDisabled : null,
+                ]}
+              >
+                <Text style={styles.confirmationButtonText}>{option.label}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {isConfirming ? <ActivityIndicator color="#FFAA4D" /> : null}
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -186,5 +251,45 @@ const styles = StyleSheet.create({
     color: '#CDBFDD',
     fontSize: 12,
     lineHeight: 17,
+  },
+  confirmationSummary: {
+    color: '#D9B8FF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  confirmationSection: {
+    borderColor: 'rgba(202, 172, 230, 0.3)',
+    borderTopWidth: 1,
+    gap: 8,
+    paddingTop: 12,
+  },
+  confirmationHeading: {
+    color: '#F8F4FC',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  confirmationOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  confirmationButton: {
+    alignItems: 'center',
+    backgroundColor: '#FF9E3D',
+    borderRadius: 10,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 42,
+    paddingHorizontal: 5,
+  },
+  confirmationButtonPressed: {
+    backgroundColor: '#E78328',
+  },
+  confirmationButtonDisabled: {
+    opacity: 0.7,
+  },
+  confirmationButtonText: {
+    color: '#15101F',
+    fontSize: 12,
+    fontWeight: '700',
   },
 });

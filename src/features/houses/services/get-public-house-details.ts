@@ -7,7 +7,9 @@ export type PublicHouseDetails = {
   ends_at: string | null;
   haunted: boolean;
   id: string;
+  last_confirmed_at: string | null;
   non_candy: boolean;
+  recent_confirmation_count: number;
   starts_at: string | null;
   status: 'available' | 'running_low';
 };

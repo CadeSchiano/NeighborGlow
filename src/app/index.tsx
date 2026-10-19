@@ -3,7 +3,7 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from '
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Circle, Marker, type Region } from 'react-native-maps';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 
 import { useAuth } from '@/features/auth/providers/auth-provider';
 import { PublicHouseDetailCard } from '@/features/houses/components/public-house-detail-card';
@@ -258,7 +258,12 @@ export default function MapScreen() {
         ) : null}
 
         {selectedHouseId ? (
-          <PublicHouseDetailCard houseId={selectedHouseId} onClose={() => setSelectedHouseId(null)} />
+          <PublicHouseDetailCard
+            houseId={selectedHouseId}
+            onClose={() => setSelectedHouseId(null)}
+            onSignIn={() => router.push('/sign-in')}
+            userId={session?.user.id ?? null}
+          />
         ) : null}
 
         <View style={[styles.locationControl, selectedHouseId ? styles.locationControlWithDetail : null]}>
