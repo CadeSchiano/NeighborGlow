@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { Marker, type Region } from 'react-native-maps';
+import MapView, { Circle, Marker, type Region } from 'react-native-maps';
 import { Link } from 'expo-router';
 
 import { useAuth } from '@/features/auth/providers/auth-provider';
@@ -10,6 +10,11 @@ import {
   getHousesInBounds,
   type VisibleHouse,
 } from '@/features/houses/services/get-houses-in-bounds';
+import {
+  getGlowInBounds,
+  shouldShowGlow,
+  type GlowArea,
+} from '@/features/houses/services/get-glow-in-bounds';
 
 const INITIAL_REGION: Region = {
   latitude: 39.8283,
@@ -18,17 +23,28 @@ const INITIAL_REGION: Region = {
   longitudeDelta: 38,
 };
 
+const GLOW_COLORS = {
+  high: 'rgba(255, 170, 77, 0.34)',
+  low: 'rgba(185, 120, 255, 0.18)',
+  medium: 'rgba(217, 137, 255, 0.26)',
+};
+
 export default function MapScreen() {
   const mapRef = useRef<MapView>(null);
   const houseRequestIdRef = useRef(0);
   const houseRequestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const glowRequestIdRef = useRef(0);
+  const glowRequestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [hasLocationPermission, setHasLocationPermission] = useState(false);
+  const [glowAreas, setGlowAreas] = useState<GlowArea[]>([]);
   const [houses, setHouses] = useState<VisibleHouse[]>([]);
   const [isLocating, setIsLocating] = useState(false);
+  const [isLoadingGlow, setIsLoadingGlow] = useState(false);
   const [isLoadingHouses, setIsLoadingHouses] = useState(false);
   const [locationMessage, setLocationMessage] = useState<string | null>(
     'Use your location to center the map around you.'
   );
+  const [region, setRegion] = useState<Region>(INITIAL_REGION);
   const { isLoading: isLoadingAuth, session } = useAuth();
 
   useEffect(() => {
@@ -54,6 +70,10 @@ export default function MapScreen() {
     return () => {
       if (houseRequestTimerRef.current) {
         clearTimeout(houseRequestTimerRef.current);
+      }
+
+      if (glowRequestTimerRef.current) {
+        clearTimeout(glowRequestTimerRef.current);
       }
     };
   }, []);
@@ -88,6 +108,52 @@ export default function MapScreen() {
       })();
     }, 250);
   }, []);
+
+  const loadGlowForRegion = useCallback((nextRegion: Region) => {
+    glowRequestIdRef.current += 1;
+    const requestId = glowRequestIdRef.current;
+
+    if (glowRequestTimerRef.current) {
+      clearTimeout(glowRequestTimerRef.current);
+    }
+
+    if (!shouldShowGlow(nextRegion)) {
+      setGlowAreas([]);
+      setIsLoadingGlow(false);
+      return;
+    }
+
+    glowRequestTimerRef.current = setTimeout(() => {
+      void (async () => {
+        setIsLoadingGlow(true);
+
+        try {
+          const visibleGlowAreas = await getGlowInBounds(nextRegion);
+
+          if (glowRequestIdRef.current === requestId) {
+            setGlowAreas(visibleGlowAreas);
+          }
+        } catch {
+          if (glowRequestIdRef.current === requestId) {
+            setGlowAreas([]);
+          }
+        } finally {
+          if (glowRequestIdRef.current === requestId) {
+            setIsLoadingGlow(false);
+          }
+        }
+      })();
+    }, 250);
+  }, []);
+
+  const handleRegionChangeComplete = useCallback(
+    (nextRegion: Region) => {
+      setRegion(nextRegion);
+      loadHousesForRegion(nextRegion);
+      loadGlowForRegion(nextRegion);
+    },
+    [loadGlowForRegion, loadHousesForRegion]
+  );
 
   const centerOnCurrentLocation = async () => {
     setIsLocating(true);
@@ -137,21 +203,35 @@ export default function MapScreen() {
         accessibilityLabel="NeighborGlow map. Pan or zoom to explore the area."
         initialRegion={INITIAL_REGION}
         mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
-        onRegionChangeComplete={loadHousesForRegion}
+        onRegionChangeComplete={handleRegionChangeComplete}
         ref={mapRef}
         showsUserLocation={hasLocationPermission}
         style={styles.map}
         userInterfaceStyle="dark"
       >
-        {houses.map((house) => (
-          <Marker
-            coordinate={{ latitude: house.latitude, longitude: house.longitude }}
-            description={house.status === 'running_low' ? 'Candy running low' : 'Candy available'}
-            key={house.id}
-            pinColor={house.status === 'running_low' ? '#FF9E3D' : '#B978FF'}
-            title="Trick-or-treating"
-          />
-        ))}
+        {shouldShowGlow(region)
+          ? glowAreas.map((glowArea, index) => (
+              <Circle
+                center={{ latitude: glowArea.latitude, longitude: glowArea.longitude }}
+                fillColor={GLOW_COLORS[glowArea.intensity]}
+                key={`${glowArea.latitude}-${glowArea.longitude}-${index}`}
+                radius={glowArea.radius_meters}
+                strokeColor="rgba(255, 213, 143, 0.48)"
+                strokeWidth={1}
+              />
+            ))
+          : null}
+        {!shouldShowGlow(region)
+          ? houses.map((house) => (
+              <Marker
+                coordinate={{ latitude: house.latitude, longitude: house.longitude }}
+                description={house.status === 'running_low' ? 'Candy running low' : 'Candy available'}
+                key={house.id}
+                pinColor={house.status === 'running_low' ? '#FF9E3D' : '#B978FF'}
+                title="Trick-or-treating"
+              />
+            ))
+          : null}
       </MapView>
 
       <SafeAreaView pointerEvents="box-none" style={styles.overlay}>
@@ -164,6 +244,14 @@ export default function MapScreen() {
           <Link href="./sign-in" style={styles.accountLink}>
             {session ? 'Account' : 'Homeowner access'}
           </Link>
+        ) : null}
+
+        {shouldShowGlow(region) ? (
+          <View accessible accessibilityRole="text" style={styles.glowLegend}>
+            {isLoadingGlow ? <ActivityIndicator color="#FFAA4D" /> : null}
+            <Text style={styles.glowLegendTitle}>The Glow</Text>
+            <Text style={styles.glowLegendText}>Coarse neighborhood activity</Text>
+          </View>
         ) : null}
 
         <View style={styles.locationControl}>
@@ -235,6 +323,26 @@ const styles = StyleSheet.create({
     marginTop: -52,
     paddingHorizontal: 14,
     paddingVertical: 11,
+  },
+  glowLegend: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(24, 15, 36, 0.96)',
+    borderColor: 'rgba(255, 170, 77, 0.55)',
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  glowLegendTitle: {
+    color: '#FFAA4D',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  glowLegendText: {
+    color: '#E9DDF5',
+    fontSize: 12,
+    marginTop: 2,
   },
   locationControl: {
     alignSelf: 'stretch',
