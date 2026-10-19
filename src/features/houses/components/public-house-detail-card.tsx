@@ -1,5 +1,15 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import {
   getPublicHouseDetails,
@@ -16,6 +26,8 @@ import {
 
 type PublicHouseDetailCardProps = {
   houseId: string;
+  isOwner: boolean;
+  onEdit: () => void;
   onSignIn: () => void;
   onClose: () => void;
   userId: string | null;
@@ -62,7 +74,9 @@ function getAttributes(house: PublicHouseDetails) {
 
 export function PublicHouseDetailCard({
   houseId,
+  isOwner,
   onClose,
+  onEdit,
   onSignIn,
   userId,
 }: PublicHouseDetailCardProps) {
@@ -144,7 +158,12 @@ export function PublicHouseDetailCard({
   };
 
   return (
-    <View accessibilityViewIsModal style={styles.card}>
+    <KeyboardAvoidingView
+      accessibilityViewIsModal
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={styles.keyboardAvoidingView}
+    >
+      <View style={styles.card}>
       <View style={styles.header}>
         <View>
           <Text style={styles.eyebrow}>TRICK-OR-TREAT STOP</Text>
@@ -177,7 +196,17 @@ export function PublicHouseDetailCard({
         </Text>
       ) : null}
       {house ? <Text style={styles.note}>Availability is homeowner-reported and may change during the night.</Text> : null}
-      {house ? (
+      {house && isOwner ? (
+        <Pressable
+          accessibilityLabel="Edit my house listing"
+          accessibilityRole="button"
+          onPress={onEdit}
+          style={({ pressed }) => [styles.editButton, pressed ? styles.editButtonPressed : null]}
+        >
+          <Text style={styles.editButtonText}>Edit my listing</Text>
+        </Pressable>
+      ) : null}
+      {house && !isOwner ? (
         <View style={styles.confirmationSection}>
           <Text style={styles.confirmationHeading}>Is this house still giving out candy?</Text>
           <View style={styles.confirmationOptions}>
@@ -201,7 +230,7 @@ export function PublicHouseDetailCard({
           {isConfirming ? <ActivityIndicator color="#FFAA4D" /> : null}
         </View>
       ) : null}
-      {house ? (
+      {house && !isOwner ? (
         <View style={styles.reportSection}>
           <Text style={styles.reportHeading}>See an issue?</Text>
           <View style={styles.reportOptions}>
@@ -224,13 +253,21 @@ export function PublicHouseDetailCard({
               );
             })}
           </View>
+          <View style={styles.reportInputHeader}>
+            <Text style={styles.reportInputLabel}>Optional details</Text>
+            <Pressable accessibilityRole="button" onPress={Keyboard.dismiss}>
+              <Text style={styles.doneText}>Done</Text>
+            </Pressable>
+          </View>
           <TextInput
             accessibilityLabel="Optional report details"
             editable={!isReporting}
             maxLength={500}
             multiline
             onChangeText={setReportDetails}
-            placeholder="Optional details"
+            blurOnSubmit
+            onSubmitEditing={Keyboard.dismiss}
+            placeholder="What happened?"
             placeholderTextColor="#BEB1CD"
             style={styles.reportInput}
             value={reportDetails}
@@ -251,11 +288,16 @@ export function PublicHouseDetailCard({
           </Pressable>
         </View>
       ) : null}
-    </View>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardAvoidingView: {
+    alignSelf: 'stretch',
+    marginTop: 'auto',
+  },
   card: {
     alignSelf: 'stretch',
     backgroundColor: 'rgba(24, 15, 36, 0.98)',
@@ -346,6 +388,21 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingTop: 12,
   },
+  editButton: {
+    alignItems: 'center',
+    backgroundColor: '#FF9E3D',
+    borderRadius: 12,
+    justifyContent: 'center',
+    minHeight: 46,
+  },
+  editButtonPressed: {
+    backgroundColor: '#E78328',
+  },
+  editButtonText: {
+    color: '#15101F',
+    fontSize: 15,
+    fontWeight: '700',
+  },
   confirmationHeading: {
     color: '#F8F4FC',
     fontSize: 14,
@@ -421,6 +478,20 @@ const styles = StyleSheet.create({
     minHeight: 72,
     padding: 10,
     textAlignVertical: 'top',
+  },
+  reportInputHeader: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  reportInputLabel: {
+    color: '#D6CAE2',
+    fontSize: 12,
+  },
+  doneText: {
+    color: '#D9B8FF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   reportButton: {
     alignItems: 'center',

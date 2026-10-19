@@ -7,6 +7,7 @@ import { Link, router } from 'expo-router';
 
 import { useAuth } from '@/features/auth/providers/auth-provider';
 import { PublicHouseDetailCard } from '@/features/houses/components/public-house-detail-card';
+import { getOwnHouseListing } from '@/features/houses/services/get-own-house-listing';
 import {
   getHousesInBounds,
   type VisibleHouse,
@@ -25,9 +26,9 @@ const INITIAL_REGION: Region = {
 };
 
 const GLOW_COLORS = {
-  high: 'rgba(255, 170, 77, 0.34)',
-  low: 'rgba(185, 120, 255, 0.18)',
-  medium: 'rgba(217, 137, 255, 0.26)',
+  high: 'rgba(255, 214, 74, 0.38)',
+  low: 'rgba(82, 178, 255, 0.18)',
+  medium: 'rgba(139, 116, 255, 0.28)',
 };
 
 export default function MapScreen() {
@@ -47,7 +48,9 @@ export default function MapScreen() {
   );
   const [region, setRegion] = useState<Region>(INITIAL_REGION);
   const [selectedHouseId, setSelectedHouseId] = useState<string | null>(null);
+  const [ownHouseId, setOwnHouseId] = useState<string | null>(null);
   const { isLoading: isLoadingAuth, session } = useAuth();
+  const userId = session?.user.id;
 
   useEffect(() => {
     let isMounted = true;
@@ -67,6 +70,34 @@ export default function MapScreen() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!userId) {
+      return;
+    }
+
+    let isCurrent = true;
+
+    const loadOwnHouse = async () => {
+      try {
+        const ownHouse = await getOwnHouseListing();
+
+        if (isCurrent) {
+          setOwnHouseId(ownHouse?.id ?? null);
+        }
+      } catch {
+        if (isCurrent) {
+          setOwnHouseId(null);
+        }
+      }
+    };
+
+    void loadOwnHouse();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [userId]);
 
   useEffect(() => {
     return () => {
@@ -260,9 +291,11 @@ export default function MapScreen() {
         {selectedHouseId ? (
           <PublicHouseDetailCard
             houseId={selectedHouseId}
+            isOwner={ownHouseId === selectedHouseId && Boolean(userId)}
             onClose={() => setSelectedHouseId(null)}
+            onEdit={() => router.push('/list-house')}
             onSignIn={() => router.push('/sign-in')}
-            userId={session?.user.id ?? null}
+            userId={userId ?? null}
           />
         ) : null}
 

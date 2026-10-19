@@ -73,6 +73,7 @@ export function HouseListingForm({ existingListing, ownerId }: HouseListingFormP
   const [allergyFriendly, setAllergyFriendly] = useState(existingListing?.allergy_friendly ?? false);
   const [nonCandy, setNonCandy] = useState(existingListing?.non_candy ?? false);
   const [isLocating, setIsLocating] = useState(false);
+  const [isAdjustingLocation, setIsAdjustingLocation] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState(() =>
     existingListing
@@ -110,7 +111,8 @@ export function HouseListingForm({ existingListing, ownerId }: HouseListingFormP
         },
         500
       );
-      setMessage('Location selected. Drag the pin or tap the map to adjust it before publishing.');
+      setIsAdjustingLocation(false);
+      setMessage('Location selected. Choose Adjust pin only if you need to correct it.');
     } catch {
       setMessage('We could not find your location. You can still tap the map to choose your listing.');
     } finally {
@@ -178,14 +180,18 @@ export function HouseListingForm({ existingListing, ownerId }: HouseListingFormP
       <Text style={styles.description}>{message}</Text>
 
       <MapView
-        accessibilityLabel="Map for selecting your house listing location. Tap the map to place the pin."
+        accessibilityLabel="Map for selecting your house listing location. Pin movement is enabled only while adjusting."
         initialRegion={
           selectedLocation
             ? { ...selectedLocation, latitudeDelta: 0.01, longitudeDelta: 0.01 }
             : INITIAL_REGION
         }
         mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
-        onPress={(event) => setSelectedLocation(event.nativeEvent.coordinate)}
+        onPress={(event) => {
+          if (isAdjustingLocation) {
+            setSelectedLocation(event.nativeEvent.coordinate);
+          }
+        }}
         ref={mapRef}
         style={styles.map}
         userInterfaceStyle="dark"
@@ -193,8 +199,12 @@ export function HouseListingForm({ existingListing, ownerId }: HouseListingFormP
         {selectedLocation ? (
           <Marker
             coordinate={selectedLocation}
-            draggable
-            onDragEnd={(event) => setSelectedLocation(event.nativeEvent.coordinate)}
+            draggable={isAdjustingLocation}
+            onDragEnd={(event) => {
+              if (isAdjustingLocation) {
+                setSelectedLocation(event.nativeEvent.coordinate);
+              }
+            }}
             pinColor="#B978FF"
             title="Your listing location"
           />
@@ -216,6 +226,25 @@ export function HouseListingForm({ existingListing, ownerId }: HouseListingFormP
         {isLocating ? <ActivityIndicator color="#F8F4FC" /> : null}
         <Text style={[styles.locationButtonText, isLocating ? styles.buttonTextLoading : null]}>
           {isLocating ? 'Finding your location…' : 'Use my location'}
+        </Text>
+      </Pressable>
+
+      <Pressable
+        accessibilityLabel={isAdjustingLocation ? 'Finish adjusting listing pin' : 'Adjust listing pin'}
+        accessibilityRole="button"
+        onPress={() => {
+          const nextIsAdjusting = !isAdjustingLocation;
+          setIsAdjustingLocation(nextIsAdjusting);
+          setMessage(
+            nextIsAdjusting
+              ? 'Adjustment mode is on. Tap the map or drag the pin, then choose Done adjusting.'
+              : 'Pin adjustment is off. Your saved location will stay in place.'
+          );
+        }}
+        style={({ pressed }) => [styles.adjustButton, pressed ? styles.locationButtonPressed : null]}
+      >
+        <Text style={styles.adjustButtonText}>
+          {isAdjustingLocation ? 'Done adjusting' : selectedLocation ? 'Adjust pin' : 'Choose on map'}
         </Text>
       </Pressable>
 
@@ -347,6 +376,20 @@ const styles = StyleSheet.create({
   },
   locationButtonText: {
     color: '#F8F4FC',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  adjustButton: {
+    alignItems: 'center',
+    borderColor: '#D9B8FF',
+    borderRadius: 14,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 48,
+    paddingHorizontal: 16,
+  },
+  adjustButtonText: {
+    color: '#D9B8FF',
     fontSize: 16,
     fontWeight: '700',
   },
