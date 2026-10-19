@@ -5,6 +5,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { HouseListingForm } from '@/features/houses/components/house-listing-form';
 import { HouseAvailabilityControl } from '@/features/houses/components/house-availability-control';
+import { CandyInventoryForm } from '@/features/houses/components/candy-inventory-form';
 import {
   getOwnHouseListing,
   type OwnHouseListing,
@@ -85,11 +86,14 @@ export default function ListHouseScreen() {
         {!listingError ? (
           <>
             {existingListing ? (
-              <HouseAvailabilityControl
-                houseId={existingListing.id}
-                initialStatus={existingListing.status}
-                ownerId={session.user.id}
-              />
+              <>
+                <HouseAvailabilityControl
+                  houseId={existingListing.id}
+                  initialStatus={existingListing.status}
+                  ownerId={session.user.id}
+                />
+                <CandyInventoryForm houseId={existingListing.id} />
+              </>
             ) : null}
             <HouseListingForm
               existingListing={existingListing}
