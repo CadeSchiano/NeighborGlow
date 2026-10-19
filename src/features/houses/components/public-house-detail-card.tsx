@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import {
   getPublicHouseDetails,
@@ -9,6 +9,10 @@ import {
   confirmHouseAvailability,
   type ConfirmationStatus,
 } from '@/features/houses/services/confirm-house-availability';
+import {
+  reportHouseListing,
+  type ReportReason,
+} from '@/features/houses/services/report-house-listing';
 
 type PublicHouseDetailCardProps = {
   houseId: string;
@@ -21,6 +25,13 @@ const CONFIRMATION_OPTIONS: { label: string; status: ConfirmationStatus }[] = [
   { label: 'Available', status: 'available' },
   { label: 'Running low', status: 'running_low' },
   { label: 'Out', status: 'out' },
+];
+
+const REPORT_OPTIONS: { label: string; reason: ReportReason }[] = [
+  { label: 'Not participating', reason: 'not_participating' },
+  { label: 'Incorrect location', reason: 'incorrect_location' },
+  { label: 'Unsafe or inappropriate', reason: 'unsafe_or_inappropriate' },
+  { label: 'Other', reason: 'other' },
 ];
 
 function formatTime(value: string | null) {
@@ -59,6 +70,9 @@ export function PublicHouseDetailCard({
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isConfirming, setIsConfirming] = useState(false);
+  const [isReporting, setIsReporting] = useState(false);
+  const [reportDetails, setReportDetails] = useState('');
+  const [selectedReportReason, setSelectedReportReason] = useState<ReportReason>('not_participating');
 
   useEffect(() => {
     let isCurrent = true;
@@ -107,6 +121,25 @@ export function PublicHouseDetailCard({
       setMessage('We could not save your confirmation. Please try again.');
     } finally {
       setIsConfirming(false);
+    }
+  };
+
+  const submitReport = async () => {
+    if (!userId) {
+      onSignIn();
+      return;
+    }
+
+    setIsReporting(true);
+
+    try {
+      await reportHouseListing(houseId, userId, selectedReportReason, reportDetails);
+      setMessage('Thanks. Your report is queued for review.');
+      setReportDetails('');
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : 'We could not save your report. Please try again.');
+    } finally {
+      setIsReporting(false);
     }
   };
 
@@ -166,6 +199,56 @@ export function PublicHouseDetailCard({
             ))}
           </View>
           {isConfirming ? <ActivityIndicator color="#FFAA4D" /> : null}
+        </View>
+      ) : null}
+      {house ? (
+        <View style={styles.reportSection}>
+          <Text style={styles.reportHeading}>See an issue?</Text>
+          <View style={styles.reportOptions}>
+            {REPORT_OPTIONS.map((option) => {
+              const isSelected = selectedReportReason === option.reason;
+
+              return (
+                <Pressable
+                  accessibilityLabel={`Report: ${option.label}`}
+                  accessibilityRole="button"
+                  disabled={isReporting}
+                  key={option.reason}
+                  onPress={() => setSelectedReportReason(option.reason)}
+                  style={[styles.reportOption, isSelected ? styles.reportOptionSelected : null]}
+                >
+                  <Text style={[styles.reportOptionText, isSelected ? styles.reportOptionTextSelected : null]}>
+                    {option.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+          <TextInput
+            accessibilityLabel="Optional report details"
+            editable={!isReporting}
+            maxLength={500}
+            multiline
+            onChangeText={setReportDetails}
+            placeholder="Optional details"
+            placeholderTextColor="#BEB1CD"
+            style={styles.reportInput}
+            value={reportDetails}
+          />
+          <Pressable
+            accessibilityLabel="Submit listing report"
+            accessibilityRole="button"
+            disabled={isReporting}
+            onPress={() => void submitReport()}
+            style={({ pressed }) => [
+              styles.reportButton,
+              pressed && !isReporting ? styles.reportButtonPressed : null,
+              isReporting ? styles.reportButtonDisabled : null,
+            ]}
+          >
+            {isReporting ? <ActivityIndicator color="#F8F4FC" /> : null}
+            <Text style={styles.reportButtonText}>{isReporting ? 'Sending report…' : 'Report listing'}</Text>
+          </Pressable>
         </View>
       ) : null}
     </View>
@@ -290,6 +373,73 @@ const styles = StyleSheet.create({
   confirmationButtonText: {
     color: '#15101F',
     fontSize: 12,
+    fontWeight: '700',
+  },
+  reportSection: {
+    borderColor: 'rgba(202, 172, 230, 0.3)',
+    borderTopWidth: 1,
+    gap: 8,
+    paddingTop: 12,
+  },
+  reportHeading: {
+    color: '#F8F4FC',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  reportOptions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 7,
+  },
+  reportOption: {
+    backgroundColor: '#342345',
+    borderColor: 'rgba(202, 172, 230, 0.38)',
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+  },
+  reportOptionSelected: {
+    backgroundColor: 'rgba(255, 158, 61, 0.18)',
+    borderColor: '#FFAA4D',
+  },
+  reportOptionText: {
+    color: '#E9DDF5',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  reportOptionTextSelected: {
+    color: '#FFAA4D',
+  },
+  reportInput: {
+    backgroundColor: '#342345',
+    borderColor: 'rgba(202, 172, 230, 0.38)',
+    borderRadius: 10,
+    borderWidth: 1,
+    color: '#F8F4FC',
+    fontSize: 14,
+    minHeight: 72,
+    padding: 10,
+    textAlignVertical: 'top',
+  },
+  reportButton: {
+    alignItems: 'center',
+    borderColor: '#D9B8FF',
+    borderRadius: 10,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    minHeight: 42,
+  },
+  reportButtonPressed: {
+    backgroundColor: 'rgba(217, 184, 255, 0.16)',
+  },
+  reportButtonDisabled: {
+    opacity: 0.7,
+  },
+  reportButtonText: {
+    color: '#F8F4FC',
+    fontSize: 13,
     fontWeight: '700',
   },
 });
