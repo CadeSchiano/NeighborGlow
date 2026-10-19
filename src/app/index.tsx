@@ -6,6 +6,7 @@ import MapView, { Circle, Marker, type Region } from 'react-native-maps';
 import { Link } from 'expo-router';
 
 import { useAuth } from '@/features/auth/providers/auth-provider';
+import { PublicHouseDetailCard } from '@/features/houses/components/public-house-detail-card';
 import {
   getHousesInBounds,
   type VisibleHouse,
@@ -45,6 +46,7 @@ export default function MapScreen() {
     'Use your location to center the map around you.'
   );
   const [region, setRegion] = useState<Region>(INITIAL_REGION);
+  const [selectedHouseId, setSelectedHouseId] = useState<string | null>(null);
   const { isLoading: isLoadingAuth, session } = useAuth();
 
   useEffect(() => {
@@ -227,6 +229,7 @@ export default function MapScreen() {
                 coordinate={{ latitude: house.latitude, longitude: house.longitude }}
                 description={house.status === 'running_low' ? 'Candy running low' : 'Candy available'}
                 key={house.id}
+                onPress={() => setSelectedHouseId(house.id)}
                 pinColor={house.status === 'running_low' ? '#FF9E3D' : '#B978FF'}
                 title="Trick-or-treating"
               />
@@ -254,7 +257,11 @@ export default function MapScreen() {
           </View>
         ) : null}
 
-        <View style={styles.locationControl}>
+        {selectedHouseId ? (
+          <PublicHouseDetailCard houseId={selectedHouseId} onClose={() => setSelectedHouseId(null)} />
+        ) : null}
+
+        <View style={[styles.locationControl, selectedHouseId ? styles.locationControlWithDetail : null]}>
           {isLoadingHouses ? <ActivityIndicator color="#FFAA4D" style={styles.houseLoading} /> : null}
           {locationMessage ? <Text style={styles.locationMessage}>{locationMessage}</Text> : null}
           <Pressable
@@ -348,6 +355,9 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
     marginBottom: 16,
     marginTop: 'auto',
+  },
+  locationControlWithDetail: {
+    marginTop: 12,
   },
   houseLoading: {
     alignSelf: 'center',
