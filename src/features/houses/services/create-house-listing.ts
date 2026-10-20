@@ -1,5 +1,7 @@
 import { supabase } from '@/services/supabase/client';
 
+import { hasValidHouseCoordinates } from './house-listing-validation';
+
 type SaveHouseListingInput = {
   accessible: boolean;
   allergyFriendly: boolean;
@@ -27,14 +29,7 @@ export async function saveHouseListing({
   ownerId,
   startsAt,
 }: SaveHouseListingInput) {
-  if (
-    !Number.isFinite(latitude) ||
-    !Number.isFinite(longitude) ||
-    latitude < -90 ||
-    latitude > 90 ||
-    longitude < -180 ||
-    longitude > 180
-  ) {
+  if (!hasValidHouseCoordinates(latitude, longitude)) {
     throw new Error('Choose a valid location on the map.');
   }
 
