@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { Circle, Marker, type Region } from 'react-native-maps';
+import MapView, { Marker, Polygon, type Region } from 'react-native-maps';
 import { Link, router } from 'expo-router';
 
 import { useAuth } from '@/features/auth/providers/auth-provider';
@@ -26,10 +26,22 @@ const INITIAL_REGION: Region = {
 };
 
 const GLOW_COLORS = {
-  high: 'rgba(255, 214, 74, 0.38)',
-  low: 'rgba(82, 178, 255, 0.18)',
-  medium: 'rgba(139, 116, 255, 0.28)',
+  high: 'rgba(255, 151, 61, 0.38)',
+  low: 'rgba(82, 178, 255, 0.22)',
+  medium: 'rgba(255, 222, 79, 0.33)',
+  very_high: 'rgba(231, 76, 60, 0.42)',
 };
+
+function getGlowCellCoordinates(glowArea: GlowArea) {
+  const halfCellSize = glowArea.cell_size_degrees / 2;
+
+  return [
+    { latitude: glowArea.latitude - halfCellSize, longitude: glowArea.longitude - halfCellSize },
+    { latitude: glowArea.latitude - halfCellSize, longitude: glowArea.longitude + halfCellSize },
+    { latitude: glowArea.latitude + halfCellSize, longitude: glowArea.longitude + halfCellSize },
+    { latitude: glowArea.latitude + halfCellSize, longitude: glowArea.longitude - halfCellSize },
+  ];
+}
 
 export default function MapScreen() {
   const mapRef = useRef<MapView>(null);
@@ -38,6 +50,7 @@ export default function MapScreen() {
   const glowRequestIdRef = useRef(0);
   const glowRequestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [hasLocationPermission, setHasLocationPermission] = useState(false);
+  const [isHeatmapEnabled, setIsHeatmapEnabled] = useState(false);
   const [glowAreas, setGlowAreas] = useState<GlowArea[]>([]);
   const [houses, setHouses] = useState<VisibleHouse[]>([]);
   const [isLocating, setIsLocating] = useState(false);
@@ -51,6 +64,7 @@ export default function MapScreen() {
   const [ownHouseId, setOwnHouseId] = useState<string | null>(null);
   const { isLoading: isLoadingAuth, session } = useAuth();
   const userId = session?.user.id;
+  const showHeatmap = isHeatmapEnabled || shouldShowGlow(region);
 
   useEffect(() => {
     let isMounted = true;
@@ -150,12 +164,6 @@ export default function MapScreen() {
       clearTimeout(glowRequestTimerRef.current);
     }
 
-    if (!shouldShowGlow(nextRegion)) {
-      setGlowAreas([]);
-      setIsLoadingGlow(false);
-      return;
-    }
-
     glowRequestTimerRef.current = setTimeout(() => {
       void (async () => {
         setIsLoadingGlow(true);
@@ -242,19 +250,18 @@ export default function MapScreen() {
         style={styles.map}
         userInterfaceStyle="dark"
       >
-        {shouldShowGlow(region)
+        {showHeatmap
           ? glowAreas.map((glowArea, index) => (
-              <Circle
-                center={{ latitude: glowArea.latitude, longitude: glowArea.longitude }}
+              <Polygon
+                coordinates={getGlowCellCoordinates(glowArea)}
                 fillColor={GLOW_COLORS[glowArea.intensity]}
                 key={`${glowArea.latitude}-${glowArea.longitude}-${index}`}
-                radius={glowArea.radius_meters}
-                strokeColor="rgba(255, 213, 143, 0.48)"
-                strokeWidth={1}
+                strokeColor="rgba(255, 255, 255, 0)"
+                strokeWidth={0}
               />
             ))
           : null}
-        {!shouldShowGlow(region)
+        {!showHeatmap
           ? houses.map((house) => (
               <Marker
                 coordinate={{ latitude: house.latitude, longitude: house.longitude }}
@@ -280,7 +287,16 @@ export default function MapScreen() {
           </Link>
         ) : null}
 
-        {shouldShowGlow(region) ? (
+        <Pressable
+          accessibilityLabel={isHeatmapEnabled ? 'Turn off heatmap mode' : 'Turn on heatmap mode'}
+          accessibilityRole="button"
+          onPress={() => setIsHeatmapEnabled((currentValue) => !currentValue)}
+          style={({ pressed }) => [styles.heatmapButton, pressed ? styles.heatmapButtonPressed : null]}
+        >
+          <Text style={styles.heatmapButtonText}>{isHeatmapEnabled ? 'Show pins' : 'Heatmap'}</Text>
+        </Pressable>
+
+        {showHeatmap ? (
           <View accessible accessibilityRole="text" style={styles.glowLegend}>
             {isLoadingGlow ? <ActivityIndicator color="#FFAA4D" /> : null}
             <Text style={styles.glowLegendTitle}>The Glow</Text>
@@ -368,6 +384,24 @@ const styles = StyleSheet.create({
     marginTop: -52,
     paddingHorizontal: 14,
     paddingVertical: 11,
+  },
+  heatmapButton: {
+    alignSelf: 'flex-end',
+    backgroundColor: 'rgba(24, 15, 36, 0.96)',
+    borderColor: 'rgba(82, 178, 255, 0.6)',
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  heatmapButtonPressed: {
+    opacity: 0.75,
+  },
+  heatmapButtonText: {
+    color: '#B9E1FF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   glowLegend: {
     alignSelf: 'flex-start',

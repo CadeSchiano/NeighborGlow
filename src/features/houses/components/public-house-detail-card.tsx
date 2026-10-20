@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  ScrollView,
   View,
 } from 'react-native';
 
@@ -163,7 +164,12 @@ export function PublicHouseDetailCard({
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={styles.keyboardAvoidingView}
     >
-      <View style={styles.card}>
+      <ScrollView
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={styles.card}>
       <View style={styles.header}>
         <View>
           <Text style={styles.eyebrow}>TRICK-OR-TREAT STOP</Text>
@@ -255,9 +261,6 @@ export function PublicHouseDetailCard({
           </View>
           <View style={styles.reportInputHeader}>
             <Text style={styles.reportInputLabel}>Optional details</Text>
-            <Pressable accessibilityRole="button" onPress={Keyboard.dismiss}>
-              <Text style={styles.doneText}>Done</Text>
-            </Pressable>
           </View>
           <TextInput
             accessibilityLabel="Optional report details"
@@ -288,7 +291,8 @@ export function PublicHouseDetailCard({
           </Pressable>
         </View>
       ) : null}
-      </View>
+        </View>
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }
@@ -296,7 +300,11 @@ export function PublicHouseDetailCard({
 const styles = StyleSheet.create({
   keyboardAvoidingView: {
     alignSelf: 'stretch',
+    flexShrink: 1,
     marginTop: 'auto',
+  },
+  scrollContent: {
+    paddingTop: 8,
   },
   card: {
     alignSelf: 'stretch',
@@ -306,7 +314,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     gap: 12,
     marginHorizontal: 16,
-    marginTop: 'auto',
     padding: 18,
   },
   header: {
@@ -487,11 +494,6 @@ const styles = StyleSheet.create({
   reportInputLabel: {
     color: '#D6CAE2',
     fontSize: 12,
-  },
-  doneText: {
-    color: '#D9B8FF',
-    fontSize: 13,
-    fontWeight: '700',
   },
   reportButton: {
     alignItems: 'center',

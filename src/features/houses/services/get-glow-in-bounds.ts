@@ -6,7 +6,8 @@ const INDIVIDUAL_HOUSE_VIEWPORT_DELTA = 0.25;
 const MAXIMUM_GLOW_VIEWPORT_DELTA = 40;
 
 export type GlowArea = {
-  intensity: 'high' | 'low' | 'medium';
+  cell_size_degrees: number;
+  intensity: 'high' | 'low' | 'medium' | 'very_high';
   latitude: number;
   longitude: number;
   radius_meters: number;
@@ -27,8 +28,6 @@ function getGlowBounds(region: MapRegion): GlowBounds | null {
     !Number.isFinite(longitude) ||
     !Number.isFinite(latitudeDelta) ||
     !Number.isFinite(longitudeDelta) ||
-    (latitudeDelta <= INDIVIDUAL_HOUSE_VIEWPORT_DELTA &&
-      longitudeDelta <= INDIVIDUAL_HOUSE_VIEWPORT_DELTA) ||
     latitudeDelta > MAXIMUM_GLOW_VIEWPORT_DELTA ||
     longitudeDelta > MAXIMUM_GLOW_VIEWPORT_DELTA
   ) {
