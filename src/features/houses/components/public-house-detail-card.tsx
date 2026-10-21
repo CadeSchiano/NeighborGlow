@@ -24,10 +24,16 @@ import {
   reportHouseListing,
   type ReportReason,
 } from '@/features/houses/services/report-house-listing';
+import {
+  getPremiumHouseCandy,
+  type PremiumHouseCandy,
+} from '@/features/candy-finder-plus/services/candy-finder-plus';
 
 type PublicHouseDetailCardProps = {
   houseId: string;
+  isCandyFinderPlusActive: boolean;
   isOwner: boolean;
+  onCandyFinderPlus: () => void;
   onEdit: () => void;
   onSignIn: () => void;
   onClose: () => void;
@@ -75,7 +81,9 @@ function getAttributes(house: PublicHouseDetails) {
 
 export function PublicHouseDetailCard({
   houseId,
+  isCandyFinderPlusActive,
   isOwner,
+  onCandyFinderPlus,
   onClose,
   onEdit,
   onSignIn,
@@ -88,6 +96,7 @@ export function PublicHouseDetailCard({
   const [isReporting, setIsReporting] = useState(false);
   const [reportDetails, setReportDetails] = useState('');
   const [selectedReportReason, setSelectedReportReason] = useState<ReportReason>('not_participating');
+  const [premiumCandy, setPremiumCandy] = useState<PremiumHouseCandy[]>([]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -117,6 +126,34 @@ export function PublicHouseDetailCard({
       isCurrent = false;
     };
   }, [houseId]);
+
+  useEffect(() => {
+    if (!isCandyFinderPlusActive || isOwner) {
+      return;
+    }
+
+    let isCurrent = true;
+
+    const loadPremiumCandy = async () => {
+      try {
+        const candy = await getPremiumHouseCandy(houseId);
+
+        if (isCurrent) {
+          setPremiumCandy(candy);
+        }
+      } catch {
+        if (isCurrent) {
+          setPremiumCandy([]);
+        }
+      }
+    };
+
+    void loadPremiumCandy();
+
+    return () => {
+      isCurrent = false;
+    };
+  }, [houseId, isCandyFinderPlusActive, isOwner]);
 
   const hours = house?.starts_at && house.ends_at ? `${formatTime(house.starts_at)} – ${formatTime(house.ends_at)}` : null;
   const attributes = house ? getAttributes(house) : [];
@@ -202,6 +239,28 @@ export function PublicHouseDetailCard({
         </Text>
       ) : null}
       {house ? <Text style={styles.note}>Availability is homeowner-reported and may change during the night.</Text> : null}
+      {house && !isOwner && isCandyFinderPlusActive ? (
+        <View style={styles.premiumCandySection}>
+          <Text style={styles.premiumCandyHeading}>Candy Finder+ details</Text>
+          {premiumCandy.length > 0 ? (
+            <Text style={styles.premiumCandyText}>
+              {premiumCandy.map((candy) => `${candy.name} (${candy.size.replace('_', ' ')})`).join(' • ')}
+            </Text>
+          ) : (
+            <Text style={styles.premiumCandyText}>No candy details have been shared for this house yet.</Text>
+          )}
+        </View>
+      ) : null}
+      {house && !isOwner && !isCandyFinderPlusActive ? (
+        <Pressable
+          accessibilityLabel="Learn about Candy Finder Plus"
+          accessibilityRole="button"
+          onPress={onCandyFinderPlus}
+          style={({ pressed }) => [styles.candyFinderButton, pressed ? styles.editButtonPressed : null]}
+        >
+          <Text style={styles.candyFinderButtonText}>Candy Finder+ shows exact treats</Text>
+        </Pressable>
+      ) : null}
       {house && isOwner ? (
         <Pressable
           accessibilityLabel="Edit my house listing"
@@ -383,6 +442,38 @@ const styles = StyleSheet.create({
     color: '#CDBFDD',
     fontSize: 12,
     lineHeight: 17,
+  },
+  premiumCandySection: {
+    backgroundColor: 'rgba(99, 59, 145, 0.36)',
+    borderColor: 'rgba(217, 184, 255, 0.56)',
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 5,
+    padding: 12,
+  },
+  premiumCandyHeading: {
+    color: '#E9D3FF',
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  premiumCandyText: {
+    color: '#F8F4FC',
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  candyFinderButton: {
+    alignItems: 'center',
+    borderColor: '#8E5DCC',
+    borderRadius: 12,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 42,
+    paddingHorizontal: 10,
+  },
+  candyFinderButtonText: {
+    color: '#E9D3FF',
+    fontSize: 13,
+    fontWeight: '700',
   },
   confirmationSummary: {
     color: '#D9B8FF',
