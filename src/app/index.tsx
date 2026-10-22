@@ -3,12 +3,13 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from '
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import MapView, { Marker, Polygon, type Region } from 'react-native-maps';
+import MapView, { Polygon, type Region } from 'react-native-maps';
 import { Link, router } from 'expo-router';
 
 import { useAuth } from '@/features/auth/providers/auth-provider';
 import { WelcomeFlow } from '@/features/onboarding/components/welcome-flow';
 import { PublicHouseDetailCard } from '@/features/houses/components/public-house-detail-card';
+import { HalloweenHouseMarker } from '@/features/houses/components/halloween-house-marker';
 import { getOwnHouseListing } from '@/features/houses/services/get-own-house-listing';
 import {
   getHousesInBounds,
@@ -283,13 +284,10 @@ export default function MapScreen() {
           : null}
         {!showHeatmap
           ? houses.map((house) => (
-              <Marker
-                coordinate={{ latitude: house.latitude, longitude: house.longitude }}
-                description={house.status === 'running_low' ? 'Candy running low' : 'Candy available'}
+              <HalloweenHouseMarker
+                house={house}
                 key={house.id}
                 onPress={() => setSelectedHouseId(house.id)}
-                pinColor={house.status === 'running_low' ? '#FF9E3D' : '#B978FF'}
-                title="Trick-or-treating"
               />
             ))
           : null}
@@ -330,6 +328,12 @@ export default function MapScreen() {
             {isLoadingGlow ? <ActivityIndicator color="#FFAA4D" /> : null}
             <Text style={styles.glowLegendTitle}>The Glow</Text>
             <Text style={styles.glowLegendText}>Coarse neighborhood activity</Text>
+          </View>
+        ) : null}
+        {!showHeatmap && houses.length > 0 ? (
+          <View accessible accessibilityRole="text" style={styles.houseLegend}>
+            <Text style={styles.houseLegendTitle}>Find your kind of stop</Text>
+            <Text style={styles.houseLegendText}>🎃 Decorated   👻 Haunted   🍬 Allergy-friendly   ♿ Accessible</Text>
           </View>
         ) : null}
 
@@ -489,6 +493,18 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: 2,
   },
+  houseLegend: {
+    alignSelf: 'flex-start',
+    backgroundColor: 'rgba(24, 15, 36, 0.94)',
+    borderColor: 'rgba(255, 170, 77, 0.42)',
+    borderRadius: 12,
+    borderWidth: 1,
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+  },
+  houseLegendTitle: { color: '#FFAA4D', fontSize: 12, fontWeight: '800' },
+  houseLegendText: { color: '#E9DDF5', fontSize: 11, lineHeight: 18, marginTop: 2 },
   locationControl: {
     alignSelf: 'stretch',
     marginBottom: 16,

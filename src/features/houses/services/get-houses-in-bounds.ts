@@ -7,9 +7,14 @@ const MAXIMUM_VIEWPORT_DELTA = 0.25;
 export type { MapRegion } from './map-query-bounds';
 
 export type VisibleHouse = {
+  accessible: boolean;
+  allergy_friendly: boolean;
+  decorated: boolean;
+  haunted: boolean;
   id: string;
   latitude: number;
   longitude: number;
+  non_candy: boolean;
   status: 'available' | 'running_low';
 };
 
