@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Marker, Polygon, type Region } from 'react-native-maps';
 import { Link, router } from 'expo-router';
 
 import { useAuth } from '@/features/auth/providers/auth-provider';
+import { WelcomeFlow } from '@/features/onboarding/components/welcome-flow';
 import { PublicHouseDetailCard } from '@/features/houses/components/public-house-detail-card';
 import { getOwnHouseListing } from '@/features/houses/services/get-own-house-listing';
 import {
@@ -24,6 +26,8 @@ const INITIAL_REGION: Region = {
   latitudeDelta: 38,
   longitudeDelta: 38,
 };
+
+const ONBOARDING_STORAGE_KEY = 'neighborglow-onboarding-complete';
 
 const GLOW_COLORS = {
   high: 'rgba(255, 151, 61, 0.38)',
@@ -50,6 +54,7 @@ export default function MapScreen() {
   const glowRequestIdRef = useRef(0);
   const glowRequestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [hasLocationPermission, setHasLocationPermission] = useState(false);
+  const [isOnboardingVisible, setIsOnboardingVisible] = useState(true);
   const [isHeatmapEnabled, setIsHeatmapEnabled] = useState(false);
   const [glowAreas, setGlowAreas] = useState<GlowArea[]>([]);
   const [houses, setHouses] = useState<VisibleHouse[]>([]);
@@ -70,11 +75,18 @@ export default function MapScreen() {
     let isMounted = true;
 
     const checkLocationPermission = async () => {
-      const { status } = await Location.getForegroundPermissionsAsync();
+      const [{ status }, onboardingComplete] = await Promise.all([
+        Location.getForegroundPermissionsAsync(),
+        AsyncStorage.getItem(ONBOARDING_STORAGE_KEY),
+      ]);
 
       if (isMounted && status === 'granted') {
         setHasLocationPermission(true);
         setLocationMessage(null);
+      }
+
+      if (isMounted && onboardingComplete === 'true') {
+        setIsOnboardingVisible(false);
       }
     };
 
@@ -241,6 +253,11 @@ export default function MapScreen() {
     }
   };
 
+  const completeOnboarding = () => {
+    setIsOnboardingVisible(false);
+    void AsyncStorage.setItem(ONBOARDING_STORAGE_KEY, 'true');
+  };
+
   return (
     <View style={styles.container}>
       <MapView
@@ -280,7 +297,7 @@ export default function MapScreen() {
 
       <SafeAreaView pointerEvents="box-none" style={styles.overlay}>
         <View accessible accessibilityRole="header" style={styles.wordmark}>
-          <Text style={styles.title}>NeighborGlow</Text>
+          <Text style={styles.title}>Neighbor<Text style={styles.titleAccent}>Glow</Text></Text>
           <Text style={styles.subtitle}>Halloween 2026</Text>
         </View>
 
@@ -296,7 +313,7 @@ export default function MapScreen() {
           onPress={() => setIsHeatmapEnabled((currentValue) => !currentValue)}
           style={({ pressed }) => [styles.heatmapButton, pressed ? styles.heatmapButtonPressed : null]}
         >
-          <Text style={styles.heatmapButtonText}>{isHeatmapEnabled ? 'Show pins' : 'Heatmap'}</Text>
+          <Text style={styles.heatmapButtonText}>{isHeatmapEnabled ? 'Show houses' : 'The Glow'}</Text>
         </Pressable>
 
         <Pressable
@@ -331,30 +348,51 @@ export default function MapScreen() {
         <View style={[styles.locationControl, selectedHouseId ? styles.locationControlWithDetail : null]}>
           {isLoadingHouses ? <ActivityIndicator color="#FFAA4D" style={styles.houseLoading} /> : null}
           {locationMessage ? <Text style={styles.locationMessage}>{locationMessage}</Text> : null}
-          <Pressable
-            accessibilityHint="Requests permission, then centers the map on your current location."
-            accessibilityLabel="Use my location"
-            accessibilityRole="button"
-            disabled={isLocating}
-            onPress={centerOnCurrentLocation}
-            style={({ pressed }) => [
-              styles.locationButton,
-              pressed && !isLocating ? styles.locationButtonPressed : null,
-              isLocating ? styles.locationButtonDisabled : null,
-            ]}
-          >
-            {isLocating ? <ActivityIndicator color="#15101F" /> : null}
-            <Text
-              style={[
-                styles.locationButtonText,
-                isLocating ? styles.locationButtonTextLoading : null,
+          <View style={styles.mapActions}>
+            <Pressable
+              accessibilityHint="Requests permission, then centers the map on your current location."
+              accessibilityLabel="Use my location"
+              accessibilityRole="button"
+              disabled={isLocating}
+              onPress={centerOnCurrentLocation}
+              style={({ pressed }) => [
+                styles.locationButton,
+                pressed && !isLocating ? styles.locationButtonPressed : null,
+                isLocating ? styles.locationButtonDisabled : null,
               ]}
             >
-              {isLocating ? 'Finding your location…' : 'Use my location'}
-            </Text>
-          </Pressable>
+              {isLocating ? <ActivityIndicator color="#1A1023" /> : null}
+              <Text style={[styles.locationButtonText, isLocating ? styles.locationButtonTextLoading : null]}>
+                {isLocating ? 'Finding…' : '⌁  My location'}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityLabel="Open my profile"
+              accessibilityRole="button"
+              onPress={() => router.push('./profile')}
+              style={({ pressed }) => [styles.profileButton, pressed ? styles.heatmapButtonPressed : null]}
+            >
+              <Text style={styles.profileButtonText}>◯</Text>
+            </Pressable>
+          </View>
+          <View style={styles.bottomNav}>
+            <View style={styles.navItem}><Text style={styles.navIcon}>⌖</Text><Text style={styles.navLabelActive}>Map</Text></View>
+            <Pressable accessibilityRole="button" onPress={() => router.push('/list-house')} style={styles.navItem}>
+              <Text style={styles.navIcon}>⌂</Text><Text style={styles.navLabel}>My house</Text>
+            </Pressable>
+            <Pressable accessibilityRole="button" onPress={() => router.push('./profile')} style={styles.navItem}>
+              <Text style={styles.navIcon}>◯</Text><Text style={styles.navLabel}>Profile</Text>
+            </Pressable>
+          </View>
         </View>
       </SafeAreaView>
+      {isOnboardingVisible ? (
+        <WelcomeFlow
+          isRequestingLocation={isLocating}
+          onAllowLocation={centerOnCurrentLocation}
+          onComplete={completeOnboarding}
+        />
+      ) : null}
     </View>
   );
 }
@@ -459,6 +497,12 @@ const styles = StyleSheet.create({
   locationControlWithDetail: {
     marginTop: 12,
   },
+  mapActions: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'center',
+  },
   houseLoading: {
     alignSelf: 'center',
     marginBottom: 8,
@@ -480,6 +524,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#FF9E3D',
     borderRadius: 16,
+    flex: 1,
     flexDirection: 'row',
     justifyContent: 'center',
     minHeight: 52,
@@ -499,11 +544,38 @@ const styles = StyleSheet.create({
   locationButtonTextLoading: {
     marginLeft: 8,
   },
+  profileButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(24, 15, 36, 0.96)',
+    borderColor: 'rgba(217, 184, 255, 0.6)',
+    borderRadius: 16,
+    borderWidth: 1,
+    height: 52,
+    justifyContent: 'center',
+    width: 52,
+  },
+  profileButtonText: { color: '#E9D3FF', fontSize: 22, fontWeight: '700' },
+  bottomNav: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(19, 12, 30, 0.97)',
+    borderColor: 'rgba(178, 112, 255, 0.36)',
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 10,
+    paddingVertical: 8,
+  },
+  navItem: { alignItems: 'center', minWidth: 72, paddingVertical: 2 },
+  navIcon: { color: '#CDBFDD', fontSize: 19 },
+  navLabel: { color: '#CDBFDD', fontSize: 11, fontWeight: '700', marginTop: 2 },
+  navLabelActive: { color: '#FFAA4D', fontSize: 11, fontWeight: '800', marginTop: 2 },
   title: {
-    color: '#FFAA4D',
+    color: '#F8F4FC',
     fontSize: 20,
     fontWeight: '700',
   },
+  titleAccent: { color: '#FF9E3D' },
   subtitle: {
     color: '#E9DDF5',
     fontSize: 12,

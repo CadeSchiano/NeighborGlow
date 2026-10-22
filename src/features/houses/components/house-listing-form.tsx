@@ -177,6 +177,10 @@ export function HouseListingForm({ existingListing, ownerId }: HouseListingFormP
 
   return (
     <View style={styles.content}>
+      <View style={styles.stepHeader}>
+        <Text style={styles.stepLabel}>{existingListing ? 'YOUR LISTING' : 'STEP 1 OF 3'}</Text>
+        <Text style={styles.stepTitle}>{existingListing ? 'Location and details' : 'Choose your house location'}</Text>
+      </View>
       <Text style={styles.description}>{message}</Text>
 
       <MapView
@@ -248,7 +252,7 @@ export function HouseListingForm({ existingListing, ownerId }: HouseListingFormP
         </Text>
       </Pressable>
 
-      <Text style={styles.sectionTitle}>Halloween hours</Text>
+      <Text style={styles.sectionTitle}>{existingListing ? 'Halloween hours' : 'Step 2 · Halloween hours'}</Text>
       <View style={styles.timeRow}>
         <View style={styles.timeField}>
           <Text style={styles.label}>Starts</Text>
@@ -274,7 +278,7 @@ export function HouseListingForm({ existingListing, ownerId }: HouseListingFormP
         </View>
       </View>
 
-      <Text style={styles.sectionTitle}>House details</Text>
+      <Text style={styles.sectionTitle}>{existingListing ? 'House details' : 'Step 2 · House details'}</Text>
       <AttributeRow label="Decorated" value={decorated} onValueChange={setDecorated} />
       <AttributeRow label="Haunted" value={haunted} onValueChange={setHaunted} />
       <AttributeRow label="Accessible" value={accessible} onValueChange={setAccessible} />
@@ -329,6 +333,21 @@ function AttributeRow({ label, onValueChange, value }: AttributeRowProps) {
 const styles = StyleSheet.create({
   content: {
     gap: 12,
+  },
+  stepHeader: {
+    gap: 4,
+    marginBottom: 2,
+  },
+  stepLabel: {
+    color: '#B978FF',
+    fontSize: 12,
+    fontWeight: '800',
+    letterSpacing: 1.1,
+  },
+  stepTitle: {
+    color: '#F8F4FC',
+    fontSize: 21,
+    fontWeight: '800',
   },
   successCard: {
     backgroundColor: 'rgba(24, 15, 36, 0.97)',

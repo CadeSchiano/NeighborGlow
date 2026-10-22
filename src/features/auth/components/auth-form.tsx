@@ -115,13 +115,13 @@ export function AuthForm() {
       >
         <View style={styles.card}>
           <Text style={styles.eyebrow}>HOMEOWNER ACCESS</Text>
-          <Text style={styles.heading}>You’re signed in</Text>
+          <Text style={styles.heading}>You’re ready for Halloween</Text>
           <Text style={styles.description}>{session.user.email}</Text>
           {message && message !== INITIAL_MESSAGE ? (
             <Text style={styles.errorMessage}>{message}</Text>
           ) : null}
           <Link href="../list-house" style={styles.listHouseLink}>
-            List your house
+            Manage my house
           </Link>
           <Pressable
             accessibilityLabel="Sign out"
@@ -218,10 +218,14 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: 'rgba(24, 15, 36, 0.97)',
-    borderColor: 'rgba(155, 97, 201, 0.58)',
-    borderRadius: 20,
+    borderColor: 'rgba(178, 112, 255, 0.62)',
+    borderRadius: 24,
     borderWidth: 1,
     padding: 22,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.24,
+    shadowRadius: 18,
   },
   eyebrow: {
     color: '#FFAA4D',
@@ -231,8 +235,8 @@ const styles = StyleSheet.create({
   },
   heading: {
     color: '#F8F4FC',
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 27,
+    fontWeight: '800',
     marginTop: 6,
   },
   description: {

@@ -78,10 +78,21 @@ export default function ListHouseScreen() {
     <SafeAreaView style={styles.safeArea}>
       <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Link accessibilityRole="link" href="/" style={styles.backLink}>
-          Back to map
+          ‹ Back to map
         </Link>
         <Text style={styles.eyebrow}>HOMEOWNER LISTING</Text>
-        <Text style={styles.title}>{existingListing ? 'Edit your house' : 'List your house'}</Text>
+        <Text style={styles.title}>{existingListing ? 'My Halloween house' : 'List your house'}</Text>
+        {!existingListing ? (
+          <View style={styles.introCard}>
+            <Text style={styles.introTitle}>It takes about two minutes.</Text>
+            <Text style={styles.introText}>Choose your location, set your Halloween hours, then add the treats you plan to share.</Text>
+            <View style={styles.stepRow}>
+              <Text style={styles.stepActive}>1 Location</Text>
+              <Text style={styles.step}>2 Details</Text>
+              <Text style={styles.step}>3 Treats</Text>
+            </View>
+          </View>
+        ) : null}
         {listingError ? <Text style={styles.errorMessage}>{listingError}</Text> : null}
         {!listingError ? (
           <>
@@ -140,6 +151,41 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     marginBottom: 12,
     marginTop: 6,
+  },
+  introCard: {
+    backgroundColor: 'rgba(68, 39, 96, 0.5)',
+    borderColor: 'rgba(178, 112, 255, 0.48)',
+    borderRadius: 18,
+    borderWidth: 1,
+    gap: 8,
+    marginBottom: 20,
+    padding: 16,
+  },
+  introTitle: {
+    color: '#F8F4FC',
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  introText: {
+    color: '#D9CBE8',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  stepRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 3,
+  },
+  step: {
+    color: '#BDAFCB',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  stepActive: {
+    color: '#FFAA4D',
+    fontSize: 12,
+    fontWeight: '800',
   },
   errorMessage: {
     color: '#FFB4A3',

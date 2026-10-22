@@ -108,7 +108,7 @@ export function CandyInventoryForm({ houseId }: CandyInventoryFormProps) {
 
   return (
     <View style={styles.card}>
-      <Text style={styles.eyebrow}>TREATS</Text>
+      <Text style={styles.eyebrow}>STEP 3 · TREATS</Text>
       <Text style={styles.heading}>Candy inventory</Text>
       <Text style={styles.description}>{message}</Text>
       {isLoading ? <ActivityIndicator color="#FFAA4D" style={styles.loader} /> : null}
