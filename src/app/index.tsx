@@ -6,10 +6,6 @@ import MapView, { Marker, Polygon, type Region } from 'react-native-maps';
 import { Link, router } from 'expo-router';
 
 import { useAuth } from '@/features/auth/providers/auth-provider';
-import {
-  getCandyFinderPlusStatus,
-  getPremiumHousesInBounds,
-} from '@/features/candy-finder-plus/services/candy-finder-plus';
 import { PublicHouseDetailCard } from '@/features/houses/components/public-house-detail-card';
 import { getOwnHouseListing } from '@/features/houses/services/get-own-house-listing';
 import {
@@ -54,8 +50,6 @@ export default function MapScreen() {
   const glowRequestIdRef = useRef(0);
   const glowRequestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [hasLocationPermission, setHasLocationPermission] = useState(false);
-  const [hasCandyFinderPlus, setHasCandyFinderPlus] = useState(false);
-  const [isFullSizeOnly, setIsFullSizeOnly] = useState(false);
   const [isHeatmapEnabled, setIsHeatmapEnabled] = useState(false);
   const [glowAreas, setGlowAreas] = useState<GlowArea[]>([]);
   const [houses, setHouses] = useState<VisibleHouse[]>([]);
@@ -70,7 +64,6 @@ export default function MapScreen() {
   const [ownHouseId, setOwnHouseId] = useState<string | null>(null);
   const { isLoading: isLoadingAuth, session } = useAuth();
   const userId = session?.user.id;
-  const canUseCandyFinderPlus = Boolean(userId) && hasCandyFinderPlus;
   const showHeatmap = isHeatmapEnabled || shouldShowGlow(region);
 
   useEffect(() => {
@@ -121,38 +114,6 @@ export default function MapScreen() {
   }, [userId]);
 
   useEffect(() => {
-    if (!userId) {
-      return;
-    }
-
-    let isCurrent = true;
-
-    const loadCandyFinderPlusStatus = async () => {
-      try {
-        const premiumStatus = await getCandyFinderPlusStatus();
-
-        if (isCurrent) {
-          setHasCandyFinderPlus(premiumStatus.is_active);
-          if (!premiumStatus.is_active) {
-            setIsFullSizeOnly(false);
-          }
-        }
-      } catch {
-        if (isCurrent) {
-          setHasCandyFinderPlus(false);
-          setIsFullSizeOnly(false);
-        }
-      }
-    };
-
-    void loadCandyFinderPlusStatus();
-
-    return () => {
-      isCurrent = false;
-    };
-  }, [userId]);
-
-  useEffect(() => {
     return () => {
       if (houseRequestTimerRef.current) {
         clearTimeout(houseRequestTimerRef.current);
@@ -177,9 +138,7 @@ export default function MapScreen() {
         setIsLoadingHouses(true);
 
         try {
-          const visibleHouses = isFullSizeOnly && canUseCandyFinderPlus
-            ? await getPremiumHousesInBounds(region, true)
-            : await getHousesInBounds(region);
+          const visibleHouses = await getHousesInBounds(region);
 
           if (houseRequestIdRef.current === requestId) {
             setHouses(visibleHouses);
@@ -195,7 +154,7 @@ export default function MapScreen() {
         }
       })();
     }, 250);
-  }, [canUseCandyFinderPlus, isFullSizeOnly]);
+  }, []);
 
   const loadGlowForRegion = useCallback((nextRegion: Region) => {
     glowRequestIdRef.current += 1;
@@ -341,24 +300,12 @@ export default function MapScreen() {
         </Pressable>
 
         <Pressable
-          accessibilityLabel={canUseCandyFinderPlus ? 'Toggle full-size candy filter' : 'Learn about Candy Finder Plus'}
+          accessibilityLabel="Learn about Candy Finder Plus"
           accessibilityRole="button"
-          onPress={() => {
-            if (canUseCandyFinderPlus) {
-              setIsFullSizeOnly((currentValue) => !currentValue);
-            } else {
-              router.push('./candy-finder-plus');
-            }
-          }}
-          style={({ pressed }) => [
-            styles.premiumFilterButton,
-            isFullSizeOnly ? styles.premiumFilterButtonSelected : null,
-            pressed ? styles.heatmapButtonPressed : null,
-          ]}
+          onPress={() => router.push('./candy-finder-plus')}
+          style={({ pressed }) => [styles.premiumFilterButton, pressed ? styles.heatmapButtonPressed : null]}
         >
-          <Text style={styles.premiumFilterButtonText}>
-            {isFullSizeOnly ? 'Full-size only' : 'Candy Finder+'}
-          </Text>
+          <Text style={styles.premiumFilterButtonText}>Candy Finder+ soon</Text>
         </Pressable>
 
         {showHeatmap ? (
@@ -373,7 +320,6 @@ export default function MapScreen() {
           <PublicHouseDetailCard
             houseId={selectedHouseId}
             isOwner={ownHouseId === selectedHouseId && Boolean(userId)}
-            isCandyFinderPlusActive={canUseCandyFinderPlus}
             onClose={() => setSelectedHouseId(null)}
             onCandyFinderPlus={() => router.push('./candy-finder-plus')}
             onEdit={() => router.push('/list-house')}
@@ -471,10 +417,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
     paddingHorizontal: 14,
     paddingVertical: 9,
-  },
-  premiumFilterButtonSelected: {
-    backgroundColor: '#6B3B97',
-    borderColor: '#D9B8FF',
   },
   premiumFilterButtonText: {
     color: '#EEDFFF',
