@@ -2,9 +2,11 @@ import { createContext, useContext, useEffect, useMemo, useState, type PropsWith
 import type { Session } from '@supabase/supabase-js';
 
 import { supabase } from '@/services/supabase/client';
+import { syncRevenueCatUser } from '@/features/candy-finder-plus/services/revenuecat';
 
 type AuthContextValue = {
   isLoading: boolean;
+  isRevenueCatIdentityReady: boolean;
   session: Session | null;
 };
 
@@ -12,10 +14,24 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: PropsWithChildren) {
   const [isLoading, setIsLoading] = useState(true);
+  const [isRevenueCatIdentityReady, setIsRevenueCatIdentityReady] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
     let isMounted = true;
+
+    let syncRequest = 0;
+    const synchronizeRevenueCatIdentity = (userId: string | null) => {
+      const request = ++syncRequest;
+      setIsRevenueCatIdentityReady(false);
+      void syncRevenueCatUser(userId)
+        .then((isReady) => {
+          if (isMounted && request === syncRequest) setIsRevenueCatIdentityReady(isReady);
+        })
+        .catch(() => {
+          if (isMounted && request === syncRequest) setIsRevenueCatIdentityReady(false);
+        });
+    };
 
     const loadSession = async () => {
       const { data } = await supabase.auth.getSession();
@@ -24,6 +40,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setSession(data.session);
         setIsLoading(false);
       }
+      synchronizeRevenueCatIdentity(data.session?.user.id ?? null);
     };
 
     void loadSession();
@@ -35,6 +52,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setSession(nextSession);
         setIsLoading(false);
       }
+      synchronizeRevenueCatIdentity(nextSession?.user.id ?? null);
     });
 
     return () => {
@@ -43,7 +61,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     };
   }, []);
 
-  const value = useMemo(() => ({ isLoading, session }), [isLoading, session]);
+  const value = useMemo(() => ({ isLoading, isRevenueCatIdentityReady, session }), [isLoading, isRevenueCatIdentityReady, session]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

@@ -5,10 +5,12 @@
     "scheme": "neighborglow",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
+    "icon": "./assets/neighborglow-icon.png",
+    "userInterfaceStyle": "dark",
     "ios": {
-      "supportsTablet": true
+      "bundleIdentifier": "com.cadeschiano.neighborglow",
+      "buildNumber": "1",
+      "supportsTablet": false
     },
     "android": {
       "adaptiveIcon": {
@@ -34,7 +36,16 @@
           "locationWhenInUsePermission": "NeighborGlow uses your location only to center maps or prefill a house listing you choose to publish. It is not shared or stored unless you save your own listing."
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0B0C2D",
+          "image": "./assets/neighborglow-splash.png",
+          "imageWidth": 220,
+          "resizeMode": "contain"
+        }
+      ]
     ]
   }
 }
