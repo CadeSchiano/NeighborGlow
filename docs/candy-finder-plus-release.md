@@ -13,7 +13,7 @@
 6. Set the webhook Authorization header to the exact `REVENUECAT_WEBHOOK_AUTHORIZATION` server secret.
 7. Enable HMAC signing and put RevenueCat's signing secret in `REVENUECAT_WEBHOOK_SIGNING_SECRET`.
 
-The function requires the expected App Store product, entitlement, App Store source, HMAC signature, and a matching RevenueCat subscriber record before granting access. It records webhook IDs so retries are idempotent.
+The function requires the expected App Store product, entitlement, App Store source, HMAC signature, and a matching RevenueCat subscriber record before granting access. It records a webhook as processed only after entitlement reconciliation succeeds; failed calls remain retryable and duplicate successful deliveries are ignored. Each first delivery reconciles RevenueCat's current subscriber state, so refunds, revocations, and late purchase events converge safely.
 
 ## Supabase
 
@@ -29,7 +29,7 @@ npx supabase functions deploy revenuecat-webhook --no-verify-jwt
 
 `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` are supplied to hosted Edge Functions by Supabase. They must never be copied into the Expo app.
 
-The pass is a permanent Apple non-consumable purchase, but NeighborGlow grants in-app Candy Finder+ access only through `2026-11-01T04:00:00Z`, the end of Halloween in US Eastern time. A future season needs a separate product and entitlement design.
+The pass is a permanent Apple non-consumable purchase, but NeighborGlow grants in-app Candy Finder+ access and accepts new in-app purchases only through `2026-11-01T04:00:00Z` (11:59 PM Eastern Time on October 31, 2026). A future season needs a separate product and entitlement design.
 
 ## EAS build setup
 

@@ -1,6 +1,6 @@
 -- Candy Finder+ is a permanent Apple non-consumable purchase, but NeighborGlow
 -- advertises its in-app premium access only for the 2026 Halloween season.
--- The pass is therefore recorded server-side through 2026-11-01 05:00 UTC
+-- The pass is therefore recorded server-side through 2026-11-01 04:00 UTC
 -- (midnight immediately following Halloween in US Eastern daylight time).
 alter table public.candy_finder_plus_entitlements
   add column revenuecat_product_id text;

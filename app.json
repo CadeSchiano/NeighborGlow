@@ -10,7 +10,7 @@
     "ios": {
       "bundleIdentifier": "com.cadeschiano.neighborglow",
       "buildNumber": "1",
-      "supportsTablet": true
+      "supportsTablet": false
     },
     "android": {
       "adaptiveIcon": {
