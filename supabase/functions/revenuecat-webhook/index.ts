@@ -53,11 +53,14 @@ Deno.serve(async (request) => {
   }
   const eventId = typeof event?.id === 'string' ? event.id : null;
   const appUserId = typeof event?.app_user_id === 'string' ? event.app_user_id : null;
+  const eventTimestampMs = typeof event?.event_timestamp_ms === 'number' && Number.isSafeInteger(event.event_timestamp_ms)
+    ? event.event_timestamp_ms
+    : null;
   // Refund/revocation events are allowed through even if RevenueCat omits the
   // entitlement list. The authoritative subscriber lookup below still requires
   // this exact entitlement and product before it can ever grant access.
   const isExpectedEvent = event?.store === 'APP_STORE' && event?.product_id === productId;
-  if (!eventId || !appUserId || !uuidPattern.test(appUserId) || !isExpectedEvent) return new Response('Ignored', { status: 200 });
+  if (!eventId || !appUserId || !eventTimestampMs || !uuidPattern.test(appUserId) || !isExpectedEvent) return new Response('Ignored', { status: 200 });
 
   const admin = createClient(
     Deno.env.get('SUPABASE_URL') ?? '',
@@ -68,6 +71,7 @@ Deno.serve(async (request) => {
     id: eventId,
     app_user_id: appUserId,
     event_type: typeof event.type === 'string' ? event.type : 'unknown',
+    event_timestamp_ms: eventTimestampMs,
   }, { onConflict: 'id', ignoreDuplicates: true });
   if (insertEventError) return new Response('Unable to record event', { status: 500 });
 
@@ -93,5 +97,7 @@ Deno.serve(async (request) => {
     return new Response('Database fulfillment failed', { status: 500 });
   }
 
-  return new Response(result === 'already_processed' ? 'Already processed' : action === 'grant' ? 'Granted' : 'Revoked', { status: 200 });
+  if (result === 'already_processed') return new Response('Already processed', { status: 200 });
+  if (result === 'ignored_stale') return new Response('Ignored stale event', { status: 200 });
+  return new Response(result === 'granted' ? 'Granted' : 'Revoked', { status: 200 });
 });

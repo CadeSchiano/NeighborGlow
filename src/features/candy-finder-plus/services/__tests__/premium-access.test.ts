@@ -6,7 +6,7 @@ import {
   isExpectedCandyFinderPlusPurchase,
   isLifetimePackage,
 } from '../premium-access';
-import { getWebhookFulfillmentAction } from '../../../../../supabase/functions/revenuecat-webhook/fulfillment';
+import { getWebhookFulfillmentAction, shouldApplyWebhookEvent } from '../../../../../supabase/functions/revenuecat-webhook/fulfillment';
 import { parseRevenueCatSignatureHeader } from '../../../../../supabase/functions/revenuecat-webhook/signature';
 
 const userId = '7b86f3df-1d7e-4f23-8e20-7a7cb706a0e1';
@@ -108,5 +108,27 @@ describe('Candy Finder+ 2026 purchase guards', () => {
     const signature = 'a'.repeat(64);
     expect(parseRevenueCatSignatureHeader(`t=1761969600,v1=${signature}`)).toEqual({ timestamp: '1761969600', signature });
     expect(parseRevenueCatSignatureHeader('X-RevenueCat-Signature=legacy')).toEqual({ timestamp: null, signature: null });
+  });
+
+  it('keeps a newer refund authoritative when different event IDs for one user arrive concurrently', () => {
+    const purchaseEventId = 'purchase-event';
+    const refundEventId = 'refund-event';
+    const applied = new Map<string, 'grant' | 'revoke'>();
+
+    expect(shouldApplyWebhookEvent({
+      action: 'revoke',
+      eventTimestampMs: 200,
+      latestProcessedAction: null,
+      latestProcessedTimestampMs: null,
+    })).toBe(true);
+    applied.set(refundEventId, 'revoke');
+
+    expect(shouldApplyWebhookEvent({
+      action: 'grant',
+      eventTimestampMs: 100,
+      latestProcessedAction: applied.get(refundEventId)!,
+      latestProcessedTimestampMs: 200,
+    })).toBe(false);
+    expect(applied.has(purchaseEventId)).toBe(false);
   });
 });

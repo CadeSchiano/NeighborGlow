@@ -17,9 +17,11 @@ create table public.revenuecat_webhook_events (
   id text primary key,
   app_user_id uuid not null references auth.users (id) on delete cascade,
   event_type text not null,
+  event_timestamp_ms bigint not null,
   received_at timestamptz not null default now(),
   processed_at timestamptz,
-  last_error text
+  last_error text,
+  processed_action text check (processed_action in ('grant', 'revoke'))
 );
 
 alter table public.revenuecat_webhook_events enable row level security;
@@ -37,6 +39,8 @@ language plpgsql security definer set search_path = ''
 as $$
 declare
   v_event public.revenuecat_webhook_events%rowtype;
+  v_latest_timestamp_ms bigint;
+  v_latest_action text;
 begin
   select * into v_event
   from public.revenuecat_webhook_events
@@ -49,6 +53,31 @@ begin
 
   if v_event.processed_at is not null then
     return 'already_processed';
+  end if;
+
+  -- PostgreSQL transaction advisory locks serialize all event IDs for one
+  -- Supabase user, including events where no entitlement row exists yet.
+  perform pg_advisory_xact_lock(hashtextextended(v_event.app_user_id::text, 0));
+
+  select event_timestamp_ms, processed_action
+  into v_latest_timestamp_ms, v_latest_action
+  from public.revenuecat_webhook_events
+  where app_user_id = v_event.app_user_id
+    and id <> p_event_id
+    and processed_at is not null
+  order by event_timestamp_ms desc, processed_at desc
+  limit 1;
+
+  -- Ignore an older event. On a timestamp tie, a recorded revocation wins over
+  -- a different event's grant so concurrent ordering cannot re-grant access.
+  if v_latest_timestamp_ms is not null and (
+    v_event.event_timestamp_ms < v_latest_timestamp_ms
+    or (v_event.event_timestamp_ms = v_latest_timestamp_ms and v_latest_action = 'revoke' and p_should_grant)
+  ) then
+    update public.revenuecat_webhook_events
+    set processed_at = now(), last_error = null
+    where id = p_event_id;
+    return 'ignored_stale';
   end if;
 
   if p_should_grant then
@@ -64,7 +93,7 @@ begin
   end if;
 
   update public.revenuecat_webhook_events
-  set processed_at = now(), last_error = null
+  set processed_at = now(), last_error = null, processed_action = case when p_should_grant then 'grant' else 'revoke' end
   where id = p_event_id;
 
   return case when p_should_grant then 'granted' else 'revoked' end;

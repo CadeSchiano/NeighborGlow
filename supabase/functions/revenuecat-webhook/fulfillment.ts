@@ -7,6 +7,7 @@ export function isCandyFinderPlusSeasonActive(now = new Date()) {
 }
 
 export type WebhookFulfillmentAction = 'already_processed' | 'grant' | 'revoke';
+export type ProcessedWebhookAction = 'grant' | 'revoke';
 
 export type RevenueCatEntitlement = {
   expiresAt: string | null;
@@ -38,4 +39,25 @@ export function getWebhookFulfillmentAction({
   return isCurrentRevenueCatEntitlement(verifiedEntitlement, now) && isCandyFinderPlusSeasonActive(now)
     ? 'grant'
     : 'revoke';
+}
+
+/**
+ * A newer RevenueCat event has already established the state for this user.
+ * For a timestamp tie, fail closed: a recorded revoke cannot be overwritten by
+ * a different event's grant.
+ */
+export function shouldApplyWebhookEvent({
+  action,
+  eventTimestampMs,
+  latestProcessedAction,
+  latestProcessedTimestampMs,
+}: {
+  action: ProcessedWebhookAction;
+  eventTimestampMs: number;
+  latestProcessedAction: ProcessedWebhookAction | null;
+  latestProcessedTimestampMs: number | null;
+}) {
+  if (latestProcessedTimestampMs === null) return true;
+  if (eventTimestampMs < latestProcessedTimestampMs) return false;
+  return !(eventTimestampMs === latestProcessedTimestampMs && latestProcessedAction === 'revoke' && action === 'grant');
 }
