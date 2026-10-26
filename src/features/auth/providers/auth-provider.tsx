@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useMemo, useState, type PropsWith
 import type { Session } from '@supabase/supabase-js';
 
 import { supabase } from '@/services/supabase/client';
+import { syncRevenueCatUser } from '@/features/candy-finder-plus/services/revenuecat';
 
 type AuthContextValue = {
   isLoading: boolean;
@@ -24,6 +25,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setSession(data.session);
         setIsLoading(false);
       }
+      void syncRevenueCatUser(data.session?.user.id ?? null).catch(() => undefined);
     };
 
     void loadSession();
@@ -35,6 +37,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         setSession(nextSession);
         setIsLoading(false);
       }
+      void syncRevenueCatUser(nextSession?.user.id ?? null).catch(() => undefined);
     });
 
     return () => {

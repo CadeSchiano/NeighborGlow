@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MapView, { Polygon, type Region } from 'react-native-maps';
-import { Link, router } from 'expo-router';
+import { Link, router, useLocalSearchParams } from 'expo-router';
 
 import { useAuth } from '@/features/auth/providers/auth-provider';
 import { WelcomeFlow } from '@/features/onboarding/components/welcome-flow';
@@ -20,6 +20,7 @@ import {
   shouldShowGlow,
   type GlowArea,
 } from '@/features/houses/services/get-glow-in-bounds';
+import { getCandyFinderPlusStatus, getPremiumHousesInBounds } from '@/features/candy-finder-plus/services/candy-finder-plus';
 
 const INITIAL_REGION: Region = {
   latitude: 39.8283,
@@ -49,6 +50,7 @@ function getGlowCellCoordinates(glowArea: GlowArea) {
 }
 
 export default function MapScreen() {
+  const { premium } = useLocalSearchParams<{ premium?: string }>();
   const mapRef = useRef<MapView>(null);
   const houseRequestIdRef = useRef(0);
   const houseRequestTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -57,6 +59,9 @@ export default function MapScreen() {
   const [hasLocationPermission, setHasLocationPermission] = useState(false);
   const [isOnboardingVisible, setIsOnboardingVisible] = useState(true);
   const [isHeatmapEnabled, setIsHeatmapEnabled] = useState(false);
+  const [isFullSizeOnly, setIsFullSizeOnly] = useState(false);
+  const [premiumCandyName, setPremiumCandyName] = useState('');
+  const [hasCandyFinderPass, setHasCandyFinderPass] = useState(false);
   const [glowAreas, setGlowAreas] = useState<GlowArea[]>([]);
   const [houses, setHouses] = useState<VisibleHouse[]>([]);
   const [isLocating, setIsLocating] = useState(false);
@@ -70,6 +75,7 @@ export default function MapScreen() {
   const [ownHouseId, setOwnHouseId] = useState<string | null>(null);
   const { isLoading: isLoadingAuth, session } = useAuth();
   const userId = session?.user.id;
+  const isPremiumMap = premium === '1' && Boolean(userId) && hasCandyFinderPass;
   const showHeatmap = isHeatmapEnabled || shouldShowGlow(region);
 
   useEffect(() => {
@@ -127,6 +133,14 @@ export default function MapScreen() {
   }, [userId]);
 
   useEffect(() => {
+    if (!userId) return;
+    const timer = setTimeout(() => {
+      void getCandyFinderPlusStatus().then((status) => setHasCandyFinderPass(status.is_active)).catch(() => setHasCandyFinderPass(false));
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [userId]);
+
+  useEffect(() => {
     return () => {
       if (houseRequestTimerRef.current) {
         clearTimeout(houseRequestTimerRef.current);
@@ -151,7 +165,9 @@ export default function MapScreen() {
         setIsLoadingHouses(true);
 
         try {
-          const visibleHouses = await getHousesInBounds(region);
+          const visibleHouses = isPremiumMap
+            ? await getPremiumHousesInBounds(region, isFullSizeOnly, premiumCandyName.trim() ? [premiumCandyName.trim()] : [])
+            : await getHousesInBounds(region);
 
           if (houseRequestIdRef.current === requestId) {
             setHouses(visibleHouses);
@@ -167,7 +183,7 @@ export default function MapScreen() {
         }
       })();
     }, 250);
-  }, []);
+  }, [isFullSizeOnly, isPremiumMap, premiumCandyName]);
 
   const loadGlowForRegion = useCallback((nextRegion: Region) => {
     glowRequestIdRef.current += 1;
@@ -340,6 +356,7 @@ export default function MapScreen() {
         {selectedHouseId ? (
           <PublicHouseDetailCard
             houseId={selectedHouseId}
+            isPremium={hasCandyFinderPass}
             isOwner={ownHouseId === selectedHouseId && Boolean(userId)}
             onClose={() => setSelectedHouseId(null)}
             onCandyFinderPlus={() => router.push('./candy-finder-plus')}
@@ -370,6 +387,24 @@ export default function MapScreen() {
                 {isLocating ? 'Finding…' : '⌁  My location'}
               </Text>
             </Pressable>
+
+        {isPremiumMap ? (
+          <View style={styles.premiumControls}>
+            <Text style={styles.premiumControlsTitle}>Candy Finder+ filters</Text>
+            <Pressable accessibilityRole="button" onPress={() => setIsFullSizeOnly((current) => !current)} style={styles.filterChip}>
+              <Text style={styles.filterChipText}>{isFullSizeOnly ? '✓ Full-size only' : 'Full-size only'}</Text>
+            </Pressable>
+            <TextInput
+              accessibilityLabel="Filter by exact candy name"
+              autoCapitalize="words"
+              onChangeText={setPremiumCandyName}
+              placeholder="Candy name, e.g. Reese's"
+              placeholderTextColor="#BDAFCB"
+              style={styles.candyFilterInput}
+              value={premiumCandyName}
+            />
+          </View>
+        ) : null}
             <Pressable
               accessibilityLabel="Open my profile"
               accessibilityRole="button"
@@ -427,6 +462,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.24,
     shadowRadius: 10,
   },
+  premiumControls: { alignSelf: 'stretch', backgroundColor: 'rgba(38, 22, 60, 0.96)', borderColor: '#A96EE8', borderRadius: 16, borderWidth: 1, gap: 8, marginTop: 10, padding: 12 },
+  premiumControlsTitle: { color: '#E9D3FF', fontSize: 13, fontWeight: '800' },
+  filterChip: { alignSelf: 'flex-start', backgroundColor: '#4E326B', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
+  filterChipText: { color: '#F8F4FC', fontSize: 13, fontWeight: '700' },
+  candyFilterInput: { backgroundColor: '#21152F', borderColor: 'rgba(217, 184, 255, 0.35)', borderRadius: 10, borderWidth: 1, color: '#F8F4FC', fontSize: 14, paddingHorizontal: 10, paddingVertical: 8 },
   accountLink: {
     alignSelf: 'flex-end',
     backgroundColor: 'rgba(24, 15, 36, 0.96)',

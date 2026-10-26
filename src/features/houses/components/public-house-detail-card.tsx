@@ -24,8 +24,10 @@ import {
   reportHouseListing,
   type ReportReason,
 } from '@/features/houses/services/report-house-listing';
+import { getPremiumHouseCandy, type PremiumHouseCandy } from '@/features/candy-finder-plus/services/candy-finder-plus';
 type PublicHouseDetailCardProps = {
   houseId: string;
+  isPremium: boolean;
   isOwner: boolean;
   onCandyFinderPlus: () => void;
   onEdit: () => void;
@@ -75,6 +77,7 @@ function getAttributes(house: PublicHouseDetails) {
 
 export function PublicHouseDetailCard({
   houseId,
+  isPremium,
   isOwner,
   onCandyFinderPlus,
   onClose,
@@ -89,6 +92,7 @@ export function PublicHouseDetailCard({
   const [isReporting, setIsReporting] = useState(false);
   const [reportDetails, setReportDetails] = useState('');
   const [selectedReportReason, setSelectedReportReason] = useState<ReportReason>('not_participating');
+  const [premiumCandy, setPremiumCandy] = useState<PremiumHouseCandy[]>([]);
 
   useEffect(() => {
     let isCurrent = true;
@@ -118,6 +122,17 @@ export function PublicHouseDetailCard({
       isCurrent = false;
     };
   }, [houseId]);
+
+  useEffect(() => {
+    if (!isPremium) {
+      return;
+    }
+    let isCurrent = true;
+    void getPremiumHouseCandy(houseId).then((candy) => {
+      if (isCurrent) setPremiumCandy(candy);
+    }).catch(() => undefined);
+    return () => { isCurrent = false; };
+  }, [houseId, isPremium]);
 
   const hours = house?.starts_at && house.ends_at ? `${formatTime(house.starts_at)} – ${formatTime(house.ends_at)}` : null;
   const attributes = house ? getAttributes(house) : [];
@@ -203,6 +218,7 @@ export function PublicHouseDetailCard({
         </Text>
       ) : null}
       {house ? <Text style={styles.note}>Availability is homeowner-reported and may change during the night.</Text> : null}
+      {isPremium && premiumCandy.length > 0 ? <Text style={styles.premiumCandy}>Candy Finder+: {premiumCandy.map((candy) => `${candy.name}${candy.size === 'full_size' ? ' (full-size)' : ''}`).join(', ')}</Text> : null}
       {house && !isOwner ? (
         <Pressable
           accessibilityLabel="Learn about Candy Finder Plus"
@@ -395,6 +411,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
   },
+  premiumCandy: { color: '#F7D68D', fontSize: 14, fontWeight: '700', lineHeight: 20 },
   candyFinderButton: {
     alignItems: 'center',
     borderColor: '#8E5DCC',

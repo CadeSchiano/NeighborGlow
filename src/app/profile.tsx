@@ -1,11 +1,22 @@
+import { useEffect, useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { Link } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { useAuth } from '@/features/auth/providers/auth-provider';
+import { getCandyFinderPlusStatus } from '@/features/candy-finder-plus/services/candy-finder-plus';
 
 export default function ProfileScreen() {
   const { session } = useAuth();
+  const [hasPass, setHasPass] = useState(false);
+
+  useEffect(() => {
+    if (!session) {
+      return;
+    }
+
+    void getCandyFinderPlusStatus().then((status) => setHasPass(status.is_active)).catch(() => setHasPass(false));
+  }, [session]);
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -22,6 +33,7 @@ export default function ProfileScreen() {
                 <Text style={styles.identityDescription}>Signed in for Halloween 2026</Text>
               </View>
             </View>
+            {hasPass ? <View style={styles.badge}><Text style={styles.badgeText}>♛ 2026 Halloween Pass Holder</Text></View> : null}
             <Link href="/list-house" style={styles.primaryLink}>Manage my house listing</Link>
             <Link href="/sign-in" style={styles.rowLink}>Account and sign out <Text style={styles.rowArrow}>›</Text></Link>
           </>
@@ -36,8 +48,8 @@ export default function ProfileScreen() {
         )}
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>Candy Finder+</Text>
-          <Text style={styles.infoText}>Coming soon for the Halloween season.</Text>
-          <Link href="/candy-finder-plus" style={styles.infoLink}>Learn more</Link>
+          <Text style={styles.infoText}>{hasPass ? 'Your 2026 Halloween Pass is active.' : 'Unlock exact candy details and full-size discovery.'}</Text>
+          <Link href="/candy-finder-plus" style={styles.infoLink}>{hasPass ? 'Manage pass' : 'Get the 2026 Pass'}</Link>
         </View>
       </View>
     </SafeAreaView>
@@ -56,6 +68,8 @@ const styles = StyleSheet.create({
   identityText: { flex: 1, gap: 3 },
   email: { color: '#F8F4FC', fontSize: 16, fontWeight: '700' },
   identityDescription: { color: '#BDAFCB', fontSize: 13 },
+  badge: { alignSelf: 'flex-start', backgroundColor: 'rgba(138, 84, 207, 0.32)', borderColor: '#B77AFF', borderRadius: 999, borderWidth: 1, paddingHorizontal: 12, paddingVertical: 8 },
+  badgeText: { color: '#F0D9FF', fontSize: 13, fontWeight: '800' },
   primaryLink: { backgroundColor: '#FF9E3D', borderRadius: 14, color: '#1A1023', fontSize: 16, fontWeight: '800', overflow: 'hidden', padding: 16, textAlign: 'center' },
   rowLink: { backgroundColor: '#21152F', borderColor: 'rgba(217, 184, 255, 0.3)', borderRadius: 14, borderWidth: 1, color: '#F8F4FC', fontSize: 16, fontWeight: '700', padding: 16 },
   rowArrow: { color: '#D9B8FF', fontSize: 22 },
