@@ -64,6 +64,7 @@ export default function MapScreen() {
   const [isFullSizeOnly, setIsFullSizeOnly] = useState(false);
   const [premiumCandyName, setPremiumCandyName] = useState('');
   const [hasCandyFinderPass, setHasCandyFinderPass] = useState(false);
+  const [candyFinderPassUserId, setCandyFinderPassUserId] = useState<string | null>(null);
   const [glowAreas, setGlowAreas] = useState<GlowArea[]>([]);
   const [houses, setHouses] = useState<VisibleHouse[]>([]);
   const [isLocating, setIsLocating] = useState(false);
@@ -78,7 +79,7 @@ export default function MapScreen() {
   const { isLoading: isLoadingAuth, session } = useAuth();
   const insets = useSafeAreaInsets();
   const userId = session?.user.id;
-  const isPremiumMap = premium === '1' && Boolean(userId) && hasCandyFinderPass;
+  const isPremiumMap = premium === '1' && Boolean(userId) && hasCandyFinderPass && candyFinderPassUserId === userId;
   const showHeatmap = isHeatmapEnabled || shouldShowGlow(region);
 
   useEffect(() => {
@@ -138,7 +139,15 @@ export default function MapScreen() {
   useEffect(() => {
     if (!userId) return;
     const timer = setTimeout(() => {
-      void getCandyFinderPlusStatus().then((status) => setHasCandyFinderPass(status.is_active)).catch(() => setHasCandyFinderPass(false));
+      void getCandyFinderPlusStatus()
+        .then((status) => {
+          setHasCandyFinderPass(status.is_active);
+          setCandyFinderPassUserId(userId);
+        })
+        .catch(() => {
+          setHasCandyFinderPass(false);
+          setCandyFinderPassUserId(userId);
+        });
     }, 0);
     return () => clearTimeout(timer);
   }, [userId]);
