@@ -7,6 +7,7 @@ import {
   isLifetimePackage,
 } from '../premium-access';
 import { getWebhookFulfillmentAction } from '../../../../../supabase/functions/revenuecat-webhook/fulfillment';
+import { parseRevenueCatSignatureHeader } from '../../../../../supabase/functions/revenuecat-webhook/signature';
 
 const userId = '7b86f3df-1d7e-4f23-8e20-7a7cb706a0e1';
 
@@ -65,12 +66,12 @@ describe('Candy Finder+ 2026 purchase guards', () => {
   it('keeps failed webhook fulfillment retryable and ignores a completed duplicate delivery', () => {
     expect(getWebhookFulfillmentAction({
       wasProcessed: false,
-      verifiedProductId: CANDY_FINDER_PLUS_2026_PRODUCT_ID,
+      verifiedEntitlement: { productId: CANDY_FINDER_PLUS_2026_PRODUCT_ID, expiresAt: null },
       now: new Date('2026-10-31T20:00:00-04:00'),
     })).toBe('grant');
     expect(getWebhookFulfillmentAction({
       wasProcessed: true,
-      verifiedProductId: CANDY_FINDER_PLUS_2026_PRODUCT_ID,
+      verifiedEntitlement: { productId: CANDY_FINDER_PLUS_2026_PRODUCT_ID, expiresAt: null },
       now: new Date('2026-10-31T20:00:00-04:00'),
     })).toBe('already_processed');
   });
@@ -80,13 +81,32 @@ describe('Candy Finder+ 2026 purchase guards', () => {
     // required for a late purchase event that follows that refund.
     expect(getWebhookFulfillmentAction({
       wasProcessed: false,
-      verifiedProductId: null,
+      verifiedEntitlement: null,
       now: new Date('2026-10-31T20:00:00-04:00'),
     })).toBe('revoke');
     expect(getWebhookFulfillmentAction({
       wasProcessed: false,
-      verifiedProductId: CANDY_FINDER_PLUS_2026_PRODUCT_ID,
+      verifiedEntitlement: { productId: CANDY_FINDER_PLUS_2026_PRODUCT_ID, expiresAt: null },
       now: new Date('2026-11-01T00:00:00-04:00'),
     })).toBe('revoke');
+  });
+
+  it('does not grant an expired or malformed RevenueCat entitlement', () => {
+    expect(getWebhookFulfillmentAction({
+      wasProcessed: false,
+      verifiedEntitlement: { productId: CANDY_FINDER_PLUS_2026_PRODUCT_ID, expiresAt: '2026-10-30T00:00:00.000Z' },
+      now: new Date('2026-10-31T20:00:00-04:00'),
+    })).toBe('revoke');
+    expect(getWebhookFulfillmentAction({
+      wasProcessed: false,
+      verifiedEntitlement: { productId: CANDY_FINDER_PLUS_2026_PRODUCT_ID, expiresAt: 'not-a-date' },
+      now: new Date('2026-10-31T20:00:00-04:00'),
+    })).toBe('revoke');
+  });
+
+  it('parses only RevenueCat’s documented HMAC webhook header format', () => {
+    const signature = 'a'.repeat(64);
+    expect(parseRevenueCatSignatureHeader(`t=1761969600,v1=${signature}`)).toEqual({ timestamp: '1761969600', signature });
+    expect(parseRevenueCatSignatureHeader('X-RevenueCat-Signature=legacy')).toEqual({ timestamp: null, signature: null });
   });
 });

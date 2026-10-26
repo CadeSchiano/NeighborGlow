@@ -8,6 +8,18 @@ export function isCandyFinderPlusSeasonActive(now = new Date()) {
 
 export type WebhookFulfillmentAction = 'already_processed' | 'grant' | 'revoke';
 
+export type RevenueCatEntitlement = {
+  expiresAt: string | null;
+  productId: string;
+} | null;
+
+export function isCurrentRevenueCatEntitlement(entitlement: RevenueCatEntitlement, now = new Date()) {
+  if (!entitlement || entitlement.productId !== CANDY_FINDER_PLUS_2026_PRODUCT_ID) return false;
+  if (entitlement.expiresAt === null) return true;
+  const expiresAt = new Date(entitlement.expiresAt);
+  return !Number.isNaN(expiresAt.getTime()) && expiresAt.getTime() > now.getTime();
+}
+
 /**
  * The verified subscriber state, not the webhook's delivery order, determines
  * the database result. This keeps refund/revocation and stale-purchase events
@@ -15,15 +27,15 @@ export type WebhookFulfillmentAction = 'already_processed' | 'grant' | 'revoke';
  */
 export function getWebhookFulfillmentAction({
   wasProcessed,
-  verifiedProductId,
+  verifiedEntitlement,
   now,
 }: {
   wasProcessed: boolean;
-  verifiedProductId: string | null;
+  verifiedEntitlement: RevenueCatEntitlement;
   now?: Date;
 }): WebhookFulfillmentAction {
   if (wasProcessed) return 'already_processed';
-  return verifiedProductId === CANDY_FINDER_PLUS_2026_PRODUCT_ID && isCandyFinderPlusSeasonActive(now)
+  return isCurrentRevenueCatEntitlement(verifiedEntitlement, now) && isCandyFinderPlusSeasonActive(now)
     ? 'grant'
     : 'revoke';
 }

@@ -17,11 +17,62 @@ create table public.revenuecat_webhook_events (
   id text primary key,
   app_user_id uuid not null references auth.users (id) on delete cascade,
   event_type text not null,
-  received_at timestamptz not null default now()
+  received_at timestamptz not null default now(),
+  processed_at timestamptz,
+  last_error text
 );
 
 alter table public.revenuecat_webhook_events enable row level security;
 revoke all on table public.revenuecat_webhook_events from anon, authenticated;
+
+-- This function locks the event row and changes both the entitlement and
+-- processed state in one database transaction. A failed transaction leaves the
+-- event retryable; simultaneous deliveries serialize on the same event row.
+create function public.reconcile_revenuecat_webhook_event(
+  p_event_id text,
+  p_should_grant boolean
+)
+returns text
+language plpgsql security definer set search_path = ''
+as $$
+declare
+  v_event public.revenuecat_webhook_events%rowtype;
+begin
+  select * into v_event
+  from public.revenuecat_webhook_events
+  where id = p_event_id
+  for update;
+
+  if not found then
+    raise exception 'Webhook event not found' using errcode = '22023';
+  end if;
+
+  if v_event.processed_at is not null then
+    return 'already_processed';
+  end if;
+
+  if p_should_grant then
+    insert into public.candy_finder_plus_entitlements (user_id, source, revenuecat_product_id, expires_at)
+    values (v_event.app_user_id, 'app_store', 'com.cadeschiano.neighborglow.candyfinder2026', timestamptz '2026-11-01 04:00:00+00')
+    on conflict (user_id) do update
+      set source = excluded.source,
+          revenuecat_product_id = excluded.revenuecat_product_id,
+          expires_at = excluded.expires_at;
+  else
+    delete from public.candy_finder_plus_entitlements
+    where user_id = v_event.app_user_id;
+  end if;
+
+  update public.revenuecat_webhook_events
+  set processed_at = now(), last_error = null
+  where id = p_event_id;
+
+  return case when p_should_grant then 'granted' else 'revoked' end;
+end;
+$$;
+
+revoke all on function public.reconcile_revenuecat_webhook_event(text, boolean) from public;
+grant execute on function public.reconcile_revenuecat_webhook_event(text, boolean) to service_role;
 
 drop function public.get_my_candy_finder_plus_status();
 
