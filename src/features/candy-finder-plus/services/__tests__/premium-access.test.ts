@@ -8,6 +8,8 @@ import {
 } from '../premium-access';
 import { getWebhookFulfillmentAction, shouldApplyWebhookEvent } from '../../../../../supabase/functions/revenuecat-webhook/fulfillment';
 import { parseRevenueCatSignatureHeader } from '../../../../../supabase/functions/revenuecat-webhook/signature';
+import { getSanitizedDatabaseError } from '../../../../../supabase/functions/revenuecat-webhook/database-error';
+import { recordRevenueCatWebhookEvent } from '../../../../../supabase/functions/revenuecat-webhook/event-recording';
 
 const userId = '7b86f3df-1d7e-4f23-8e20-7a7cb706a0e1';
 
@@ -130,5 +132,61 @@ describe('Candy Finder+ 2026 purchase guards', () => {
       latestProcessedTimestampMs: 200,
     })).toBe(false);
     expect(applied.has(purchaseEventId)).toBe(false);
+  });
+
+  it('keeps event-recording database diagnostics useful without logging customer identifiers', () => {
+    expect(getSanitizedDatabaseError({
+      code: '23503',
+      message: 'insert or update on table "revenuecat_webhook_events" violates foreign key constraint',
+      details: 'Key (app_user_id)=(7b86f3df-1d7e-4f23-8e20-7a7cb706a0e1) is not present in table "users".',
+      hint: 'Contact test@example.com with Bearer secret-token',
+      unrelated: 'must not be logged',
+    })).toEqual({
+      code: '23503',
+      message: 'insert or update on table "revenuecat_webhook_events" violates foreign key constraint',
+      details: 'Key (app_user_id)=([redacted-uuid]) is not present in table "users".',
+      hint: 'Contact [redacted-email] with Bearer [redacted]',
+    });
+  });
+
+  it('does not serialize arbitrary failure objects into webhook logs', () => {
+    expect(getSanitizedDatabaseError({ cause: { authorization: 'do-not-log' } })).toEqual({
+      code: null,
+      message: null,
+      details: null,
+      hint: null,
+    });
+  });
+
+  it('keeps an event-recording failure retryable and logs only sanitized database diagnostics', async () => {
+    const upsert = jest.fn().mockResolvedValue({
+      error: {
+        code: '23503',
+        message: 'foreign key violation',
+        details: `Key (app_user_id)=(${userId}) is not present.`,
+        hint: null,
+      },
+    });
+    const logError = jest.fn();
+
+    await expect(recordRevenueCatWebhookEvent({
+      id: 'event-id',
+      app_user_id: userId,
+      event_type: 'NON_RENEWING_PURCHASE',
+      event_timestamp_ms: 1761969600000,
+    }, upsert, logError)).resolves.toBe(false);
+
+    expect(upsert).toHaveBeenCalledWith({
+      id: 'event-id',
+      app_user_id: userId,
+      event_type: 'NON_RENEWING_PURCHASE',
+      event_timestamp_ms: 1761969600000,
+    }, { onConflict: 'id', ignoreDuplicates: true });
+    expect(logError).toHaveBeenCalledWith('RevenueCat webhook event record failed', {
+      code: '23503',
+      message: 'foreign key violation',
+      details: 'Key (app_user_id)=([redacted-uuid]) is not present.',
+      hint: null,
+    });
   });
 });
