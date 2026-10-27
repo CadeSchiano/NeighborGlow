@@ -106,6 +106,17 @@ describe('Candy Finder+ 2026 purchase guards', () => {
     })).toBe('revoke');
   });
 
+  it('does not let a restored pass extend the fixed 2026 expiration', () => {
+    // Restores use the same verified webhook path as purchases. After the
+    // seasonal cutoff, a RevenueCat lifetime entitlement is reconciled as a
+    // revocation instead of a new 2026 entitlement.
+    expect(getWebhookFulfillmentAction({
+      wasProcessed: false,
+      verifiedEntitlement: { productId: CANDY_FINDER_PLUS_2026_PRODUCT_ID, expiresAt: null },
+      now: new Date('2026-11-01T00:00:00-04:00'),
+    })).toBe('revoke');
+  });
+
   it('parses only RevenueCat’s documented HMAC webhook header format', () => {
     const signature = 'a'.repeat(64);
     expect(parseRevenueCatSignatureHeader(`t=1761969600,v1=${signature}`)).toEqual({ timestamp: '1761969600', signature });
