@@ -1,4 +1,5 @@
-import { getSanitizedDatabaseError } from './database-error';
+// @ts-expect-error Deno Edge Functions require explicit TypeScript extensions.
+import { getSanitizedDatabaseError } from './database-error.ts';
 
 type WebhookEventRecord = {
   id: string;
