@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Location from 'expo-location';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Polygon, type Region } from 'react-native-maps';
 import { Link, router, useLocalSearchParams } from 'expo-router';
 
@@ -59,6 +59,8 @@ export default function MapScreen() {
   const [hasLocationPermission, setHasLocationPermission] = useState(false);
   const [isOnboardingVisible, setIsOnboardingVisible] = useState(true);
   const [isHeatmapEnabled, setIsHeatmapEnabled] = useState(false);
+  const [isFiltersVisible, setIsFiltersVisible] = useState(false);
+  const [isLegendExpanded, setIsLegendExpanded] = useState(false);
   const [isFullSizeOnly, setIsFullSizeOnly] = useState(false);
   const [premiumCandyName, setPremiumCandyName] = useState('');
   const [hasCandyFinderPass, setHasCandyFinderPass] = useState(false);
@@ -74,6 +76,7 @@ export default function MapScreen() {
   const [selectedHouseId, setSelectedHouseId] = useState<string | null>(null);
   const [ownHouseId, setOwnHouseId] = useState<string | null>(null);
   const { isLoading: isLoadingAuth, session } = useAuth();
+  const insets = useSafeAreaInsets();
   const userId = session?.user.id;
   const isPremiumMap = premium === '1' && Boolean(userId) && hasCandyFinderPass;
   const showHeatmap = isHeatmapEnabled || shouldShowGlow(region);
@@ -309,35 +312,37 @@ export default function MapScreen() {
           : null}
       </MapView>
 
-      <SafeAreaView pointerEvents="box-none" style={styles.overlay}>
-        <View accessible accessibilityRole="header" style={styles.wordmark}>
-          <Text style={styles.title}>Neighbor<Text style={styles.titleAccent}>Glow</Text></Text>
-          <Text style={styles.subtitle}>Halloween 2026</Text>
+      <SafeAreaView edges={['top']} pointerEvents="box-none" style={[styles.overlay, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+        <View style={styles.topBar}>
+          <View accessible accessibilityRole="header" style={styles.wordmark}>
+            <Text style={styles.title}>Neighbor<Text style={styles.titleAccent}>Glow</Text></Text>
+            <Text style={styles.subtitle}>Halloween 2026</Text>
+          </View>
+          {!isLoadingAuth ? (
+            <Link href="./sign-in" style={styles.accountLink}>
+              {session ? 'Account' : 'Sign in'}
+            </Link>
+          ) : null}
         </View>
 
-        {!isLoadingAuth ? (
-          <Link href="./sign-in" style={styles.accountLink}>
-            {session ? 'Account' : 'Homeowner access'}
-          </Link>
-        ) : null}
-
-        <Pressable
-          accessibilityLabel={isHeatmapEnabled ? 'Turn off heatmap mode' : 'Turn on heatmap mode'}
-          accessibilityRole="button"
-          onPress={() => setIsHeatmapEnabled((currentValue) => !currentValue)}
-          style={({ pressed }) => [styles.heatmapButton, pressed ? styles.heatmapButtonPressed : null]}
-        >
-          <Text style={styles.heatmapButtonText}>{isHeatmapEnabled ? 'Show houses' : 'The Glow'}</Text>
-        </Pressable>
-
-        <Pressable
-          accessibilityLabel="Learn about Candy Finder Plus"
-          accessibilityRole="button"
-          onPress={() => router.push('./candy-finder-plus')}
-          style={({ pressed }) => [styles.premiumFilterButton, pressed ? styles.heatmapButtonPressed : null]}
-        >
-          <Text style={styles.premiumFilterButtonText}>Candy Finder+ soon</Text>
-        </Pressable>
+        <View style={styles.topControls}>
+          <Pressable
+            accessibilityLabel={isHeatmapEnabled ? 'Turn off heatmap mode' : 'Turn on heatmap mode'}
+            accessibilityRole="button"
+            onPress={() => setIsHeatmapEnabled((currentValue) => !currentValue)}
+            style={({ pressed }) => [styles.controlChip, styles.glowControlChip, pressed ? styles.heatmapButtonPressed : null]}
+          >
+            <Text style={styles.heatmapButtonText}>{isHeatmapEnabled ? 'Houses' : 'The Glow'}</Text>
+          </Pressable>
+          <Pressable
+            accessibilityLabel="Learn about Candy Finder Plus"
+            accessibilityRole="button"
+            onPress={() => router.push('./candy-finder-plus')}
+            style={({ pressed }) => [styles.controlChip, styles.premiumFilterButton, pressed ? styles.heatmapButtonPressed : null]}
+          >
+            <Text style={styles.premiumFilterButtonText}>✦ Finder+</Text>
+          </Pressable>
+        </View>
 
         {showHeatmap ? (
           <View accessible accessibilityRole="text" style={styles.glowLegend}>
@@ -347,10 +352,16 @@ export default function MapScreen() {
           </View>
         ) : null}
         {!showHeatmap && houses.length > 0 ? (
-          <View accessible accessibilityRole="text" style={styles.houseLegend}>
-            <Text style={styles.houseLegendTitle}>Find your kind of stop</Text>
-            <Text style={styles.houseLegendText}>🎃 Decorated   👻 Haunted   🍬 Allergy-friendly   ♿ Accessible</Text>
-          </View>
+          <Pressable
+            accessibilityLabel="House marker legend"
+            accessibilityRole="button"
+            accessibilityState={{ expanded: isLegendExpanded }}
+            onPress={() => setIsLegendExpanded((current) => !current)}
+            style={({ pressed }) => [styles.houseLegend, pressed ? styles.heatmapButtonPressed : null]}
+          >
+            <Text style={styles.houseLegendTitle}>Marker guide {isLegendExpanded ? '⌃' : '⌄'}</Text>
+            {isLegendExpanded ? <Text style={styles.houseLegendText}>🎃 Decorated{`\n`}👻 Haunted{`\n`}🍬 Allergy-friendly{`\n`}♿ Accessible</Text> : null}
+          </Pressable>
         ) : null}
 
         {selectedHouseId ? (
@@ -387,24 +398,14 @@ export default function MapScreen() {
                 {isLocating ? 'Finding…' : '⌁  My location'}
               </Text>
             </Pressable>
-
-        {isPremiumMap ? (
-          <View style={styles.premiumControls}>
-            <Text style={styles.premiumControlsTitle}>Candy Finder+ filters</Text>
-            <Pressable accessibilityRole="button" onPress={() => setIsFullSizeOnly((current) => !current)} style={styles.filterChip}>
-              <Text style={styles.filterChipText}>{isFullSizeOnly ? '✓ Full-size only' : 'Full-size only'}</Text>
+            <Pressable
+              accessibilityLabel="Open map filters"
+              accessibilityRole="button"
+              onPress={() => setIsFiltersVisible(true)}
+              style={({ pressed }) => [styles.filtersButton, pressed ? styles.heatmapButtonPressed : null]}
+            >
+              <Text style={styles.filtersButtonText}>☷ Filters{isPremiumMap && (isFullSizeOnly || premiumCandyName.trim()) ? ' •' : ''}</Text>
             </Pressable>
-            <TextInput
-              accessibilityLabel="Filter by exact candy name"
-              autoCapitalize="words"
-              onChangeText={setPremiumCandyName}
-              placeholder="Candy name, e.g. Reese's"
-              placeholderTextColor="#BDAFCB"
-              style={styles.candyFilterInput}
-              value={premiumCandyName}
-            />
-          </View>
-        ) : null}
             <Pressable
               accessibilityLabel="Open my profile"
               accessibilityRole="button"
@@ -425,6 +426,62 @@ export default function MapScreen() {
           </View>
         </View>
       </SafeAreaView>
+      <Modal
+        animationType="slide"
+        onRequestClose={() => setIsFiltersVisible(false)}
+        transparent
+        visible={isFiltersVisible}
+      >
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.modalRoot}>
+          <Pressable accessibilityLabel="Close filters" onPress={() => setIsFiltersVisible(false)} style={styles.modalBackdrop} />
+          <View accessibilityViewIsModal style={[styles.filterSheet, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+            <View style={styles.sheetHandle} />
+            <View style={styles.sheetHeader}>
+              <View>
+                <Text style={styles.sheetEyebrow}>MAP CONTROLS</Text>
+                <Text style={styles.sheetTitle}>Filters</Text>
+              </View>
+              <Pressable accessibilityLabel="Close filters" accessibilityRole="button" onPress={() => setIsFiltersVisible(false)} style={styles.closeButton}>
+                <Text style={styles.closeButtonText}>×</Text>
+              </Pressable>
+            </View>
+            {isPremiumMap ? (
+              <>
+                <Text style={styles.sheetDescription}>Find participating homes with premium candy details.</Text>
+                <Pressable accessibilityRole="switch" accessibilityState={{ checked: isFullSizeOnly }} onPress={() => setIsFullSizeOnly((current) => !current)} style={styles.fullSizeRow}>
+                  <View>
+                    <Text style={styles.fullSizeTitle}>Full-size candy</Text>
+                    <Text style={styles.fullSizeDescription}>Show homes with full-size treats</Text>
+                  </View>
+                  <View style={[styles.toggleTrack, isFullSizeOnly ? styles.toggleTrackActive : null]}><View style={[styles.toggleKnob, isFullSizeOnly ? styles.toggleKnobActive : null]} /></View>
+                </Pressable>
+                <Text style={styles.inputLabel}>Candy name</Text>
+                <TextInput
+                  accessibilityLabel="Filter by exact candy name"
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  onChangeText={setPremiumCandyName}
+                  placeholder="e.g. Reese's"
+                  placeholderTextColor="#BDAFCB"
+                  style={styles.candyFilterInput}
+                  value={premiumCandyName}
+                />
+              </>
+            ) : (
+              <View style={styles.lockedFilters}>
+                <Text style={styles.lockedFiltersTitle}>✦ Candy Finder+ filters</Text>
+                <Text style={styles.lockedFiltersText}>Full-size and candy-name filters are included with the 2026 Halloween Pass. You can keep browsing every participating house for free.</Text>
+                <Pressable accessibilityRole="button" onPress={() => { setIsFiltersVisible(false); router.push('./candy-finder-plus'); }} style={styles.learnMoreButton}>
+                  <Text style={styles.learnMoreButtonText}>Explore Candy Finder+</Text>
+                </Pressable>
+              </View>
+            )}
+            <Pressable accessibilityRole="button" onPress={() => setIsFiltersVisible(false)} style={styles.doneButton}>
+              <Text style={styles.doneButtonText}>Done</Text>
+            </Pressable>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
       {isOnboardingVisible ? (
         <WelcomeFlow
           isRequestingLocation={isLocating}
@@ -447,58 +504,43 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 16,
   },
+  topBar: { alignItems: 'flex-start', flexDirection: 'row', justifyContent: 'space-between', marginTop: 8 },
   wordmark: {
-    alignSelf: 'flex-start',
     backgroundColor: 'rgba(24, 15, 36, 0.96)',
     borderColor: 'rgba(155, 97, 201, 0.58)',
-    borderRadius: 16,
+    borderRadius: 14,
     borderWidth: 1,
     elevation: 5,
-    marginTop: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.24,
     shadowRadius: 10,
   },
-  premiumControls: { alignSelf: 'stretch', backgroundColor: 'rgba(38, 22, 60, 0.96)', borderColor: '#A96EE8', borderRadius: 16, borderWidth: 1, gap: 8, marginTop: 10, padding: 12 },
-  premiumControlsTitle: { color: '#E9D3FF', fontSize: 13, fontWeight: '800' },
-  filterChip: { alignSelf: 'flex-start', backgroundColor: '#4E326B', borderRadius: 999, paddingHorizontal: 10, paddingVertical: 7 },
-  filterChipText: { color: '#F8F4FC', fontSize: 13, fontWeight: '700' },
-  candyFilterInput: { backgroundColor: '#21152F', borderColor: 'rgba(217, 184, 255, 0.35)', borderRadius: 10, borderWidth: 1, color: '#F8F4FC', fontSize: 14, paddingHorizontal: 10, paddingVertical: 8 },
   accountLink: {
-    alignSelf: 'flex-end',
     backgroundColor: 'rgba(24, 15, 36, 0.96)',
     borderColor: 'rgba(155, 97, 201, 0.58)',
-    borderRadius: 16,
-    borderWidth: 1,
-    color: '#F8F4FC',
-    fontSize: 15,
-    fontWeight: '700',
-    marginTop: -52,
-    paddingHorizontal: 14,
-    paddingVertical: 11,
-  },
-  heatmapButton: {
-    alignSelf: 'flex-end',
-    backgroundColor: 'rgba(24, 15, 36, 0.96)',
-    borderColor: 'rgba(82, 178, 255, 0.6)',
     borderRadius: 12,
     borderWidth: 1,
-    marginTop: 10,
-    paddingHorizontal: 12,
+    color: '#F8F4FC',
+    fontSize: 13,
+    fontWeight: '700',
+    paddingHorizontal: 11,
+    paddingVertical: 9,
+  },
+  topControls: { alignSelf: 'flex-end', flexDirection: 'row', gap: 8, marginTop: 9 },
+  controlChip: {
+    backgroundColor: 'rgba(24, 15, 36, 0.96)',
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingHorizontal: 11,
     paddingVertical: 8,
   },
+  glowControlChip: { borderColor: 'rgba(82, 178, 255, 0.6)' },
   premiumFilterButton: {
-    alignSelf: 'flex-end',
     backgroundColor: 'rgba(50, 35, 70, 0.92)',
     borderColor: '#8E5DCC',
-    borderRadius: 18,
-    borderWidth: 1,
-    marginTop: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
   },
   premiumFilterButtonText: {
     color: '#EEDFFF',
@@ -547,7 +589,6 @@ const styles = StyleSheet.create({
   houseLegendText: { color: '#E9DDF5', fontSize: 11, lineHeight: 18, marginTop: 2 },
   locationControl: {
     alignSelf: 'stretch',
-    marginBottom: 16,
     marginTop: 'auto',
   },
   locationControlWithDetail: {
@@ -559,6 +600,17 @@ const styles = StyleSheet.create({
     gap: 10,
     justifyContent: 'center',
   },
+  filtersButton: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(38, 22, 60, 0.97)',
+    borderColor: '#A96EE8',
+    borderRadius: 16,
+    borderWidth: 1,
+    height: 52,
+    justifyContent: 'center',
+    paddingHorizontal: 12,
+  },
+  filtersButtonText: { color: '#EEDFFF', fontSize: 13, fontWeight: '800' },
   houseLoading: {
     alignSelf: 'center',
     marginBottom: 8,
@@ -639,4 +691,39 @@ const styles = StyleSheet.create({
     marginTop: 2,
     textTransform: 'uppercase',
   },
+  modalRoot: { flex: 1, justifyContent: 'flex-end' },
+  modalBackdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(7, 4, 12, 0.56)' },
+  filterSheet: {
+    backgroundColor: '#1C122A',
+    borderColor: 'rgba(178, 112, 255, 0.58)',
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
+    borderWidth: 1,
+    gap: 14,
+    paddingHorizontal: 20,
+    paddingTop: 10,
+  },
+  sheetHandle: { alignSelf: 'center', backgroundColor: 'rgba(233, 211, 255, 0.42)', borderRadius: 999, height: 4, width: 40 },
+  sheetHeader: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between', marginTop: 2 },
+  sheetEyebrow: { color: '#FFAA4D', fontSize: 11, fontWeight: '800', letterSpacing: 1.1 },
+  sheetTitle: { color: '#F8F4FC', fontSize: 24, fontWeight: '800', marginTop: 2 },
+  closeButton: { alignItems: 'center', backgroundColor: '#322043', borderRadius: 18, height: 36, justifyContent: 'center', width: 36 },
+  closeButtonText: { color: '#F8F4FC', fontSize: 25, fontWeight: '300', lineHeight: 29 },
+  sheetDescription: { color: '#D9CBE8', fontSize: 14, lineHeight: 20 },
+  fullSizeRow: { alignItems: 'center', backgroundColor: 'rgba(63, 38, 84, 0.72)', borderColor: 'rgba(217, 184, 255, 0.28)', borderRadius: 16, borderWidth: 1, flexDirection: 'row', justifyContent: 'space-between', padding: 14 },
+  fullSizeTitle: { color: '#F8F4FC', fontSize: 16, fontWeight: '800' },
+  fullSizeDescription: { color: '#CDBFDD', fontSize: 12, marginTop: 3 },
+  toggleTrack: { backgroundColor: '#4A3B58', borderRadius: 20, height: 28, justifyContent: 'center', padding: 3, width: 50 },
+  toggleTrackActive: { backgroundColor: '#8E5DCC', alignItems: 'flex-end' },
+  toggleKnob: { backgroundColor: '#F8F4FC', borderRadius: 11, height: 22, width: 22 },
+  toggleKnobActive: { backgroundColor: '#FFF2DD' },
+  inputLabel: { color: '#E9D3FF', fontSize: 13, fontWeight: '800', marginBottom: -7 },
+  candyFilterInput: { backgroundColor: '#21152F', borderColor: 'rgba(217, 184, 255, 0.35)', borderRadius: 12, borderWidth: 1, color: '#F8F4FC', fontSize: 16, paddingHorizontal: 13, paddingVertical: 12 },
+  lockedFilters: { backgroundColor: 'rgba(63, 38, 84, 0.58)', borderColor: 'rgba(217, 184, 255, 0.28)', borderRadius: 16, borderWidth: 1, gap: 9, padding: 16 },
+  lockedFiltersTitle: { color: '#EEDFFF', fontSize: 16, fontWeight: '800' },
+  lockedFiltersText: { color: '#D9CBE8', fontSize: 14, lineHeight: 20 },
+  learnMoreButton: { alignSelf: 'flex-start', backgroundColor: '#5D3B81', borderRadius: 12, marginTop: 3, paddingHorizontal: 13, paddingVertical: 10 },
+  learnMoreButtonText: { color: '#F8F4FC', fontSize: 13, fontWeight: '800' },
+  doneButton: { alignItems: 'center', backgroundColor: '#FF9E3D', borderRadius: 14, justifyContent: 'center', minHeight: 48 },
+  doneButtonText: { color: '#1A1023', fontSize: 16, fontWeight: '800' },
 });
