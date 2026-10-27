@@ -9,13 +9,24 @@ import { getCandyFinderPlusStatus } from '@/features/candy-finder-plus/services/
 export default function ProfileScreen() {
   const { session } = useAuth();
   const [hasPass, setHasPass] = useState(false);
+  const [passUserId, setPassUserId] = useState<string | null>(null);
+  const hasPassForCurrentUser = hasPass && passUserId === session?.user.id;
 
   useEffect(() => {
     if (!session) {
       return;
     }
 
-    void getCandyFinderPlusStatus().then((status) => setHasPass(status.is_active)).catch(() => setHasPass(false));
+    const userId = session.user.id;
+    void getCandyFinderPlusStatus()
+      .then((status) => {
+        setHasPass(status.is_active);
+        setPassUserId(userId);
+      })
+      .catch(() => {
+        setHasPass(false);
+        setPassUserId(userId);
+      });
   }, [session]);
 
   return (
@@ -33,7 +44,7 @@ export default function ProfileScreen() {
                 <Text style={styles.identityDescription}>Signed in for Halloween 2026</Text>
               </View>
             </View>
-            {hasPass ? <View style={styles.badge}><Text style={styles.badgeText}>♛ 2026 Halloween Pass Holder</Text></View> : null}
+            {hasPassForCurrentUser ? <View style={styles.badge}><Text style={styles.badgeText}>♛ 2026 Halloween Pass Holder</Text></View> : null}
             <Link href="/list-house" style={styles.primaryLink}>Manage my house listing</Link>
             <Link href="/sign-in" style={styles.rowLink}>Account and sign out <Text style={styles.rowArrow}>›</Text></Link>
           </>
@@ -48,8 +59,8 @@ export default function ProfileScreen() {
         )}
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>Candy Finder+</Text>
-          <Text style={styles.infoText}>{hasPass ? 'Your 2026 Halloween Pass is active.' : 'Unlock exact candy details and full-size discovery.'}</Text>
-          <Link href="/candy-finder-plus" style={styles.infoLink}>{hasPass ? 'Manage pass' : 'Get the 2026 Pass'}</Link>
+          <Text style={styles.infoText}>{hasPassForCurrentUser ? 'Your 2026 Halloween Pass is active.' : 'Unlock exact candy details and full-size discovery.'}</Text>
+          <Link href="/candy-finder-plus" style={styles.infoLink}>{hasPassForCurrentUser ? 'Manage pass' : 'Get the 2026 Pass'}</Link>
         </View>
       </View>
     </SafeAreaView>

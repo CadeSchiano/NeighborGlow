@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState, type PropsWithChildren } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState, type PropsWithChildren } from 'react';
 import type { Session } from '@supabase/supabase-js';
 
 import { supabase } from '@/services/supabase/client';
@@ -16,12 +16,15 @@ export function AuthProvider({ children }: PropsWithChildren) {
   const [isLoading, setIsLoading] = useState(true);
   const [isRevenueCatIdentityReady, setIsRevenueCatIdentityReady] = useState(false);
   const [session, setSession] = useState<Session | null>(null);
+  const lastRevenueCatUserId = useRef<string | null | undefined>(undefined);
 
   useEffect(() => {
     let isMounted = true;
 
     let syncRequest = 0;
     const synchronizeRevenueCatIdentity = (userId: string | null) => {
+      if (lastRevenueCatUserId.current === userId) return;
+      lastRevenueCatUserId.current = userId;
       const request = ++syncRequest;
       setIsRevenueCatIdentityReady(false);
       void syncRevenueCatUser(userId)

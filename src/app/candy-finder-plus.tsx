@@ -19,6 +19,7 @@ import {
   restoreCandyFinderPlus,
 } from '@/features/candy-finder-plus/services/revenuecat';
 import { getCandyFinderPlusStatus, waitForCandyFinderPlusEntitlement } from '@/features/candy-finder-plus/services/candy-finder-plus';
+import { isUserCancelledPurchase } from '@/features/candy-finder-plus/services/purchase-error';
 
 export default function CandyFinderPlusScreen() {
   const { isRevenueCatIdentityReady, session } = useAuth();
@@ -82,7 +83,7 @@ export default function CandyFinderPlusScreen() {
         setMessage('Your purchase is being confirmed. Please refresh this screen in a moment.');
       }
     } catch (error) {
-      setMessage(Boolean((error as { userCancelled?: boolean } | null)?.userCancelled) ? 'Purchase cancelled.' : 'We could not complete your purchase. Please try again.');
+      setMessage(isUserCancelledPurchase(error) ? 'Purchase cancelled.' : 'We could not complete your purchase. Please try again.');
     } finally { setIsWorking(false); }
   };
 
