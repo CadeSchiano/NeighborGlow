@@ -1,5 +1,7 @@
 import { supabase } from '@/services/supabase/client';
 
+import { getHousePublishingConsentError, type HousePublishingConsent } from '@/features/legal/legal-acknowledgments';
+
 import { hasValidHouseCoordinates } from './house-listing-validation';
 
 type SaveHouseListingInput = {
@@ -13,6 +15,7 @@ type SaveHouseListingInput = {
   nonCandy: boolean;
   houseId?: string;
   ownerId: string;
+  publishingConsent?: HousePublishingConsent;
   startsAt: string;
 };
 
@@ -27,10 +30,24 @@ export async function saveHouseListing({
   nonCandy,
   houseId,
   ownerId,
+  publishingConsent,
   startsAt,
 }: SaveHouseListingInput) {
   if (!hasValidHouseCoordinates(latitude, longitude)) {
     throw new Error('Choose a valid location on the map.');
+  }
+
+  if (!houseId) {
+    const consentError = getHousePublishingConsentError(
+      publishingConsent ?? {
+        confirmsAtLeast18: false,
+        confirmsPublishingAuthorization: false,
+      },
+    );
+
+    if (consentError) {
+      throw new Error(consentError);
+    }
   }
 
   const values = {

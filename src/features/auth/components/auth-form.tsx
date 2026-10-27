@@ -5,6 +5,7 @@ import {
   Platform,
   Pressable,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   View,
@@ -12,6 +13,14 @@ import {
 import { Link, router } from 'expo-router';
 
 import { useAuth } from '@/features/auth/providers/auth-provider';
+import {
+  getRegistrationAcknowledgmentError,
+} from '@/features/legal/legal-acknowledgments';
+import {
+  openLegalDocument,
+  PRIVACY_POLICY_URL,
+  TERMS_OF_SERVICE_URL,
+} from '@/features/legal/legal-links';
 import { supabase } from '@/services/supabase/client';
 
 type AuthMode = 'signIn' | 'signUp';
@@ -25,6 +34,9 @@ export function AuthForm() {
   const [mode, setMode] = useState<AuthMode>('signIn');
   const [message, setMessage] = useState(INITIAL_MESSAGE);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [confirmsAtLeast13, setConfirmsAtLeast13] = useState(false);
+  const [acceptsTerms, setAcceptsTerms] = useState(false);
+  const [acceptsPrivacyPolicy, setAcceptsPrivacyPolicy] = useState(false);
 
   const submit = async () => {
     const normalizedEmail = email.trim().toLowerCase();
@@ -37,6 +49,19 @@ export function AuthForm() {
     if (mode === 'signUp' && password.length < 8) {
       setMessage('Choose a password with at least 8 characters.');
       return;
+    }
+
+    if (mode === 'signUp') {
+      const acknowledgmentError = getRegistrationAcknowledgmentError({
+        acceptsPrivacyPolicy,
+        acceptsTerms,
+        confirmsAtLeast13,
+      });
+
+      if (acknowledgmentError) {
+        setMessage(acknowledgmentError);
+        return;
+      }
     }
 
     setIsSubmitting(true);
@@ -85,6 +110,14 @@ export function AuthForm() {
   const switchMode = () => {
     setMode((currentMode) => (currentMode === 'signIn' ? 'signUp' : 'signIn'));
     setMessage(INITIAL_MESSAGE);
+  };
+
+  const openLegalPage = async (url: typeof PRIVACY_POLICY_URL | typeof TERMS_OF_SERVICE_URL) => {
+    try {
+      await openLegalDocument(url);
+    } catch {
+      setMessage('We could not open that legal page. Please try again.');
+    }
   };
 
   const isSignUp = mode === 'signUp';
@@ -184,6 +217,35 @@ export function AuthForm() {
           value={password}
         />
 
+        {isSignUp ? (
+          <View style={styles.acknowledgmentSection}>
+            <Text style={styles.acknowledgmentIntro}>Before creating an account, please confirm:</Text>
+            <AcknowledgmentRow
+              label="I am at least 13 years old."
+              onValueChange={setConfirmsAtLeast13}
+              value={confirmsAtLeast13}
+            />
+            <AcknowledgmentRow
+              label="I agree to the Terms of Service."
+              onValueChange={setAcceptsTerms}
+              value={acceptsTerms}
+            />
+            <AcknowledgmentRow
+              label="I acknowledge the Privacy Policy."
+              onValueChange={setAcceptsPrivacyPolicy}
+              value={acceptsPrivacyPolicy}
+            />
+            <View style={styles.legalLinks}>
+              <Pressable accessibilityRole="link" onPress={() => void openLegalPage(TERMS_OF_SERVICE_URL)}>
+                <Text style={styles.legalLink}>Read Terms of Service</Text>
+              </Pressable>
+              <Pressable accessibilityRole="link" onPress={() => void openLegalPage(PRIVACY_POLICY_URL)}>
+                <Text style={styles.legalLink}>Read Privacy Policy</Text>
+              </Pressable>
+            </View>
+          </View>
+        ) : null}
+
         <Pressable
           accessibilityLabel={isSignUp ? 'Create account' : 'Sign in'}
           accessibilityRole="button"
@@ -208,6 +270,28 @@ export function AuthForm() {
         </Pressable>
       </View>
     </KeyboardAvoidingView>
+  );
+}
+
+type AcknowledgmentRowProps = {
+  label: string;
+  onValueChange: (value: boolean) => void;
+  value: boolean;
+};
+
+function AcknowledgmentRow({ label, onValueChange, value }: AcknowledgmentRowProps) {
+  return (
+    <View style={styles.acknowledgmentRow}>
+      <Text style={styles.acknowledgmentLabel}>{label}</Text>
+      <Switch
+        accessibilityLabel={label}
+        accessibilityRole="switch"
+        onValueChange={onValueChange}
+        thumbColor={value ? '#FFAA4D' : '#E9DDF5'}
+        trackColor={{ false: '#5D526B', true: '#8E5BC0' }}
+        value={value}
+      />
+    </View>
   );
 }
 
@@ -268,6 +352,43 @@ const styles = StyleSheet.create({
     marginBottom: 18,
     minHeight: 50,
     paddingHorizontal: 14,
+  },
+  acknowledgmentSection: {
+    backgroundColor: 'rgba(78, 50, 107, 0.26)',
+    borderColor: 'rgba(217, 184, 255, 0.34)',
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 10,
+    marginBottom: 18,
+    padding: 14,
+  },
+  acknowledgmentIntro: {
+    color: '#F8F4FC',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  acknowledgmentRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  acknowledgmentLabel: {
+    color: '#E9DDF5',
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  legalLinks: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 14,
+  },
+  legalLink: {
+    color: '#D9B8FF',
+    fontSize: 14,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
   },
   primaryButton: {
     alignItems: 'center',
