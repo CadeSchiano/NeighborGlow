@@ -4,6 +4,7 @@ import {
   CANDY_FINDER_PLUS_2026_PRODUCT_ID as productId,
   getWebhookFulfillmentAction,
 } from './fulfillment.ts';
+import { recordRevenueCatWebhookEvent } from './event-recording.ts';
 import { hasValidRevenueCatSignature } from './signature.ts';
 
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -67,13 +68,13 @@ Deno.serve(async (request) => {
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
   );
 
-  const { error: insertEventError } = await admin.from('revenuecat_webhook_events').upsert({
+  const didRecordEvent = await recordRevenueCatWebhookEvent({
     id: eventId,
     app_user_id: appUserId,
     event_type: typeof event.type === 'string' ? event.type : 'unknown',
     event_timestamp_ms: eventTimestampMs,
-  }, { onConflict: 'id', ignoreDuplicates: true });
-  if (insertEventError) return new Response('Unable to record event', { status: 500 });
+  }, (record, options) => admin.from('revenuecat_webhook_events').upsert(record, options));
+  if (!didRecordEvent) return new Response('Unable to record event', { status: 500 });
 
   // Do not trust the event's ordering or purchase status. RevenueCat's current
   // subscriber state is authoritative for every first-time delivery, including
