@@ -1,0 +1,30 @@
+:root { --ink: #f8f4fc; --muted: #cbbfda; --panel: #1d1429; --line: #4d3565; --orange: #ff9d3e; --purple: #b77aff; --night: #0e0a16; --danger: #ffc9c9; }
+* { box-sizing: border-box; }
+html { background: var(--night); color: var(--ink); font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; line-height: 1.6; }
+body { margin: 0; }
+a { color: #e5c9ff; text-underline-offset: 3px; }
+a:hover { color: #fff; }
+.site-header { background: rgba(14, 10, 22, .95); border-bottom: 1px solid var(--line); position: sticky; top: 0; z-index: 1; }
+.nav { align-items: center; display: flex; gap: 18px; justify-content: space-between; margin: auto; max-width: 960px; padding: 15px 22px; }
+.brand { color: var(--ink); font-size: 1.15rem; font-weight: 800; letter-spacing: -.03em; text-decoration: none; }
+.brand span { color: var(--orange); }
+.links { display: flex; flex-wrap: wrap; gap: 14px; }
+.links a { color: var(--muted); font-size: .92rem; text-decoration: none; }
+.links a[aria-current="page"] { color: var(--orange); font-weight: 800; }
+main { margin: 0 auto; max-width: 820px; padding: 62px 22px 76px; }
+.eyebrow { color: var(--orange); font-size: .75rem; font-weight: 800; letter-spacing: .14em; margin: 0 0 10px; text-transform: uppercase; }
+h1, h2, h3 { color: var(--ink); line-height: 1.18; }
+h1 { font-size: clamp(2.2rem, 7vw, 4.2rem); letter-spacing: -.06em; margin: 0; }
+h2 { border-top: 1px solid var(--line); font-size: 1.45rem; margin: 42px 0 14px; padding-top: 30px; }
+h3 { font-size: 1.05rem; margin-bottom: 4px; }
+p, li { color: var(--muted); }
+.lead { font-size: 1.16rem; max-width: 660px; }
+.card, .notice { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; margin: 30px 0; padding: 22px; }
+.notice { border-color: rgba(255, 157, 62, .7); }
+.notice h2 { border: 0; color: var(--orange); font-size: 1rem; margin: 0 0 8px; padding: 0; }
+.grid { display: grid; gap: 16px; grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 28px; }
+.card h2 { border: 0; font-size: 1.2rem; margin: 0 0 8px; padding: 0; }
+.button { background: var(--orange); border-radius: 12px; color: #26130a; display: inline-block; font-weight: 800; padding: 12px 16px; text-decoration: none; }
+.meta { color: #ab9abf; font-size: .9rem; }
+.footer { border-top: 1px solid var(--line); color: #ab9abf; font-size: .85rem; padding: 25px 22px; text-align: center; }
+@media (max-width: 560px) { .nav { align-items: flex-start; flex-direction: column; gap: 8px; } .grid { grid-template-columns: 1fr; } main { padding-top: 42px; } }
