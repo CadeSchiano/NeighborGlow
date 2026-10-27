@@ -27,6 +27,11 @@ verify_jwt = false
 # instead. Left unset, a fresh project falls back to `true`.
 auto_expose_new_tables = false
 
+[functions.delete-account]
+# The client supplies the current Supabase bearer token. The function also
+# verifies it with auth.getUser before it can delete any account.
+verify_jwt = true
+
 [api.tls]
 # Enable HTTPS endpoints locally using a self-signed certificate.
 enabled = false
