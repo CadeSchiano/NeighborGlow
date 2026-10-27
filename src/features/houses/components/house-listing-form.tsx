@@ -15,6 +15,7 @@ import MapView, { Marker, type LatLng, type Region } from 'react-native-maps';
 
 import { saveHouseListing } from '@/features/houses/services/create-house-listing';
 import type { OwnHouseListing } from '@/features/houses/services/get-own-house-listing';
+import { getHousePublishingConsentError } from '@/features/legal/legal-acknowledgments';
 
 const INITIAL_REGION: Region = {
   latitude: 39.8283,
@@ -75,6 +76,8 @@ export function HouseListingForm({ existingListing, ownerId }: HouseListingFormP
   const [isLocating, setIsLocating] = useState(false);
   const [isAdjustingLocation, setIsAdjustingLocation] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [confirmsAtLeast18, setConfirmsAtLeast18] = useState(false);
+  const [confirmsPublishingAuthorization, setConfirmsPublishingAuthorization] = useState(false);
   const [message, setMessage] = useState(() =>
     existingListing
       ? 'Update your Halloween listing below. Your pin is only public when you set availability.'
@@ -131,6 +134,18 @@ export function HouseListingForm({ existingListing, ownerId }: HouseListingFormP
       return;
     }
 
+    if (!existingListing) {
+      const consentError = getHousePublishingConsentError({
+        confirmsAtLeast18,
+        confirmsPublishingAuthorization,
+      });
+
+      if (consentError) {
+        setMessage(consentError);
+        return;
+      }
+    }
+
     setIsSubmitting(true);
     setMessage('');
 
@@ -146,6 +161,9 @@ export function HouseListingForm({ existingListing, ownerId }: HouseListingFormP
         longitude: selectedLocation.longitude,
         nonCandy,
         ownerId,
+        publishingConsent: existingListing
+          ? undefined
+          : { confirmsAtLeast18, confirmsPublishingAuthorization },
         startsAt: formatTimeForDatabase(startsAt),
       });
       setIsSaved(true);
@@ -289,6 +307,25 @@ export function HouseListingForm({ existingListing, ownerId }: HouseListingFormP
       />
       <AttributeRow label="Non-candy treats" value={nonCandy} onValueChange={setNonCandy} />
 
+      {!existingListing ? (
+        <View style={styles.consentCard}>
+          <Text style={styles.consentTitle}>Before you publish</Text>
+          <Text style={styles.consentDescription}>
+            Your selected map coordinates, availability, hours, and selected house details will be publicly visible in NeighborGlow.
+          </Text>
+          <ConsentRow
+            label="I am at least 18 years old."
+            onValueChange={setConfirmsAtLeast18}
+            value={confirmsAtLeast18}
+          />
+          <ConsentRow
+            label="I am authorized to publish this residential location."
+            onValueChange={setConfirmsPublishingAuthorization}
+            value={confirmsPublishingAuthorization}
+          />
+        </View>
+      ) : null}
+
       <Pressable
         accessibilityLabel="Save house listing"
         accessibilityRole="button"
@@ -321,6 +358,22 @@ function AttributeRow({ label, onValueChange, value }: AttributeRowProps) {
       <Text style={styles.attributeLabel}>{label}</Text>
       <Switch
         accessibilityLabel={label}
+        onValueChange={onValueChange}
+        thumbColor={value ? '#FFAA4D' : '#E9DDF5'}
+        trackColor={{ false: '#5D526B', true: '#8E5BC0' }}
+        value={value}
+      />
+    </View>
+  );
+}
+
+function ConsentRow({ label, onValueChange, value }: AttributeRowProps) {
+  return (
+    <View style={styles.consentRow}>
+      <Text style={styles.consentLabel}>{label}</Text>
+      <Switch
+        accessibilityLabel={label}
+        accessibilityRole="switch"
         onValueChange={onValueChange}
         thumbColor={value ? '#FFAA4D' : '#E9DDF5'}
         trackColor={{ false: '#5D526B', true: '#8E5BC0' }}
@@ -457,6 +510,37 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     paddingRight: 12,
+  },
+  consentCard: {
+    backgroundColor: 'rgba(78, 50, 107, 0.26)',
+    borderColor: 'rgba(217, 184, 255, 0.38)',
+    borderRadius: 14,
+    borderWidth: 1,
+    gap: 10,
+    marginTop: 10,
+    padding: 14,
+  },
+  consentTitle: {
+    color: '#FFAA4D',
+    fontSize: 16,
+    fontWeight: '800',
+  },
+  consentDescription: {
+    color: '#E9DDF5',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  consentRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  consentLabel: {
+    color: '#F8F4FC',
+    flex: 1,
+    fontSize: 14,
+    lineHeight: 20,
   },
   primaryButton: {
     alignItems: 'center',

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { Link, router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -7,6 +7,11 @@ import { useAuth } from '@/features/auth/providers/auth-provider';
 import { getCandyFinderPlusStatus } from '@/features/candy-finder-plus/services/candy-finder-plus';
 import { deleteCurrentAccount } from '@/features/auth/services/delete-account';
 import { AccountDeletionCleanupError, AccountDeletionSessionChangedError } from '@/features/auth/services/account-deletion-state';
+import {
+  openLegalDocument,
+  PRIVACY_POLICY_URL,
+  TERMS_OF_SERVICE_URL,
+} from '@/features/legal/legal-links';
 
 export default function ProfileScreen() {
   const { session } = useAuth();
@@ -70,9 +75,17 @@ export default function ProfileScreen() {
     );
   };
 
+  const openLegalPage = async (url: typeof PRIVACY_POLICY_URL | typeof TERMS_OF_SERVICE_URL) => {
+    try {
+      await openLegalDocument(url);
+    } catch {
+      Alert.alert('Could not open legal page', 'Please try again.');
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
         <Link href="/" style={styles.backLink}>‹ Back to map</Link>
         <Text style={styles.eyebrow}>YOUR NEIGHBORHOOD</Text>
         <Text style={styles.title}>Profile</Text>
@@ -118,7 +131,19 @@ export default function ProfileScreen() {
           <Text style={styles.infoText}>{hasPassForCurrentUser ? 'Your 2026 Halloween Pass is active.' : 'Unlock exact candy details and full-size discovery.'}</Text>
           <Link href="/candy-finder-plus" style={styles.infoLink}>{hasPassForCurrentUser ? 'Manage pass' : 'Get the 2026 Pass'}</Link>
         </View>
-      </View>
+        <View style={styles.legalCard}>
+          <Text style={styles.legalTitle}>Legal</Text>
+          <Text style={styles.legalText}>Review how NeighborGlow handles information and the terms for using the app.</Text>
+          <View style={styles.legalLinks}>
+            <Pressable accessibilityRole="link" onPress={() => void openLegalPage(PRIVACY_POLICY_URL)}>
+              <Text style={styles.legalLink}>Privacy Policy</Text>
+            </Pressable>
+            <Pressable accessibilityRole="link" onPress={() => void openLegalPage(TERMS_OF_SERVICE_URL)}>
+              <Text style={styles.legalLink}>Terms of Service</Text>
+            </Pressable>
+          </View>
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -154,4 +179,9 @@ const styles = StyleSheet.create({
   infoTitle: { color: '#E9D3FF', fontSize: 17, fontWeight: '800' },
   infoText: { color: '#D9CBE8', fontSize: 14 },
   infoLink: { color: '#D9B8FF', fontSize: 14, fontWeight: '800', marginTop: 4 },
+  legalCard: { backgroundColor: '#21152F', borderColor: 'rgba(217, 184, 255, 0.3)', borderRadius: 20, borderWidth: 1, gap: 7, padding: 18 },
+  legalTitle: { color: '#F8F4FC', fontSize: 17, fontWeight: '800' },
+  legalText: { color: '#D9CBE8', fontSize: 14, lineHeight: 20 },
+  legalLinks: { flexDirection: 'row', flexWrap: 'wrap', gap: 16, marginTop: 4 },
+  legalLink: { color: '#D9B8FF', fontSize: 14, fontWeight: '800', textDecorationLine: 'underline' },
 });
